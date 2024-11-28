@@ -1,0 +1,8 @@
+.{
+    .name = "RayVis",
+    .version = "0.0.24",
+    .dependencies = .{
+        .raylib = .{ .path = "raylib" },
+    },
+    .paths = .{ "build.zig", "build.zig.zon", "vis", "src" },
+}
