@@ -11,9 +11,10 @@ pub const Viewer = struct {
     height: c_int,
     fps: c_int,
     title: []const u8,
+    rec: bool,
     ff: *FFPipe,
 
-    pub fn init(allocator: Allocator, w: c_int, h: c_int, fps: c_int, t: []const u8) !*Viewer {
+    pub fn init(allocator: Allocator, w: c_int, h: c_int, fps: c_int, t: []const u8, rec: bool) !*Viewer {
         ray.InitWindow(w, h, t.ptr);
         ray.SetTargetFPS(fps);
         var v = try allocator.create(Viewer);
@@ -21,7 +22,9 @@ pub const Viewer = struct {
         v.height = h;
         v.fps = fps;
         v.title = t;
-        v.ff = try FFPipe.init(allocator);
+        v.rec = rec;
+        if (rec)
+            v.ff = try FFPipe.init(allocator, w, h, fps);
         return v;
     }
 
@@ -35,9 +38,13 @@ pub const Viewer = struct {
             done = render(cnt);
             cnt += 1;
             ray.EndDrawing();
-            const img = ray.LoadImageFromScreen();
-            try self.ff.put(img.data.?, img.height * img.width * 4);
-            ray.MemFree(img.data);
+            if (self.rec) {
+                const img = ray.LoadImageFromScreen();
+                try self.ff.put(img.data.?, img.height * img.width * 4);
+                ray.MemFree(img.data);
+            }
         }
+        if (self.rec)
+            try self.ff.finish();
     }
 };

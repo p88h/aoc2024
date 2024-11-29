@@ -6,10 +6,16 @@ pub const FFPipe = struct {
     child: ChildProcess,
     pipe: []c_int,
 
-    pub fn init(allocator: Allocator) !*FFPipe {
+    pub fn init(allocator: Allocator, width: c_int, height: c_int, fps: c_int) !*FFPipe {
         var f = try allocator.create(FFPipe);
-        f.child = ChildProcess.init(&[_][]const u8{ "ffmpeg", "-f", "rawvideo", "-pix_fmt", "rgb0", "-s", "1920x1080", "-r", "60", "-i", "-", "out.mp4" }, allocator);
+        const res_str = try std.fmt.allocPrint(allocator, "{d}x{d}", .{ width, height });
+        const fps_str = try std.fmt.allocPrint(allocator, "{d}", .{fps});
+        // TODO: name the file based on the day number
+        std.fs.cwd().deleteFile("out.mp4");
+        const args = &[_][]const u8{ "ffmpeg", "-loglevel", "quiet", "-f", "rawvideo", "-pix_fmt", "rgb0", "-s", res_str, "-r", fps_str, "-i", "-", "out.mp4" };
+        f.child = ChildProcess.init(args, allocator);
         f.child.stdin_behavior = .Pipe;
+        f.child.stdout_behavior = .Close;
         try f.child.spawn();
         return f;
     }
@@ -19,9 +25,9 @@ pub const FFPipe = struct {
         _ = try self.child.stdin.?.write(bytes);
     }
 
-    pub fn finish(self: *FFPipe) void {
+    pub fn finish(self: *FFPipe) !void {
         self.child.stdin.?.close();
+        self.child.stdin = null;
         _ = try self.child.wait();
-        self.child.deinit();
     }
 };

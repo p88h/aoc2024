@@ -10,7 +10,7 @@ pub fn main() !void {
     var gpa = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
-    ctx.a = try ASCIIRay.init(allocator, 1920, 1080, 15, 24);
+    ctx.a = try ASCIIRay.init(allocator, 1920, 1080, 15, true, 24);
     try ctx.a.loop(struct {
         pub fn render(idx: c_int) bool {
             if (idx > 100) return true;

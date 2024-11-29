@@ -1,6 +1,6 @@
 const std = @import("std");
 const fs = std.fs;
-const Viewer = @import("common.zig").Viewer;
+const Viewer = @import("viewer.zig").Viewer;
 const ray = @cImport({
     @cInclude("raylib.h");
 });
@@ -18,7 +18,7 @@ pub const ASCIIRay = struct {
     const font_file = "resources/" ++ font_name;
     const font_uri = "https://github.com/googlefonts/Inconsolata/raw/main/fonts/ttf/" ++ font_name;
 
-    pub fn init(allocator: Allocator, w: c_int, h: c_int, fps: c_int, size: c_int) !*ASCIIRay {
+    pub fn init(allocator: Allocator, w: c_int, h: c_int, fps: c_int, rec: bool, size: c_int) !*ASCIIRay {
         fs.cwd().access(font_file, .{}) catch |err| {
             if (err == error.FileNotFound) {
                 std.io.getStdOut().writeAll("Try downloading the font " ++ font_file ++ "\n") catch unreachable;
@@ -40,7 +40,7 @@ pub const ASCIIRay = struct {
             }
         };
         var a = try allocator.create(ASCIIRay);
-        a.v = try Viewer.init(allocator, w, h, fps, "ASCII Ray");
+        a.v = try Viewer.init(allocator, w, h, fps, "ASCII Ray", rec);
         a.font = ray.LoadFontEx(font_file, size, null, 256);
         try std.io.getStdOut().writer().print("Font texture id: {d}", .{a.font.texture.id});
         a.fsize = @as(f32, @floatFromInt(size));

@@ -8,7 +8,7 @@ pub fn build(b: *std.Build) !void {
 
     const libvis = b.addStaticLibrary(.{
         .name = "RayVis",
-        .root_source_file = b.path("vis/common.zig"),
+        .root_source_file = b.path("vis/asciiray.zig"),
         .target = target,
         .optimize = optimize,
     });
