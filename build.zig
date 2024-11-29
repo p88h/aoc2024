@@ -3,6 +3,10 @@ const fs = std.fs;
 const cstr = []const u8;
 
 pub fn build(b: *std.Build) !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
@@ -31,19 +35,18 @@ pub fn build(b: *std.Build) !void {
     // needed ?
     vis_cmd.step.dependOn(b.getInstallStep());
 
-    // This allows the user to pass arguments to the application in the build
-    // command itself, like this: `zig build run -- arg1 arg2 etc`
-    if (b.args) |args| {
-        vis_cmd.addArgs(args);
-    }
-
-    // This creates a build step. It will be visible in the `zig build --help` menu,
-    // and can be selected like this: `zig build run`
-    // This will evaluate the `run` step rather than the default, which is "install".
     const vis_step = b.step("vis", "Run the visualisation app");
     vis_step.dependOn(&vis_cmd.step);
 
-    const run_step = b.step("run", "Run all days");
+    // compose a library with all the days that will be populated into runner source
+    fs.cwd().deleteFile("_days.zig") catch {};
+    const file = try fs.cwd().createFile("_days.zig", .{});
+    try file.writeAll("pub const Days = struct {\n");
+    // some magical incantations
+    try file.writeAll("    const fnError = error{Invalid};\n");
+    try file.writeAll("    const fnType = *const fn () fnError!void;\n");
+    var dayList = std.ArrayList([]const u8).init(allocator);
+    defer dayList.deinit();
 
     // build all per-day executables in src/
     var iter_src = try std.fs.cwd().openDir(
@@ -52,35 +55,11 @@ pub fn build(b: *std.Build) !void {
     );
     defer iter_src.close();
     var iter = iter_src.iterate();
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-
-    fs.cwd().deleteFile("_days.zig") catch {};
-    // compose a library with all the days that will also create the dispatcher source
-    const file = try fs.cwd().createFile("_days.zig", .{});
-    try file.writeAll("pub const Days = struct {\n");
-    // some magical incantations
-    try file.writeAll("    const fnError = error{Invalid};\n");
-    try file.writeAll("    const fnType = *const fn () fnError!void;\n");
-    var dayList = std.ArrayList([]const u8).init(allocator);
-    defer dayList.deinit();
     while (try iter.next()) |entry| {
         var paths = [_]cstr{ "src", entry.name };
         const file_path = try fs.path.join(allocator, &paths);
         const day_name = try std.fmt.allocPrint(allocator, "day{s}", .{entry.name[3..5]});
         defer allocator.free(file_path);
-
-        const day = b.addExecutable(.{
-            .name = entry.name,
-            .root_source_file = b.path(file_path),
-            .target = target,
-            .optimize = optimize,
-        });
-        b.installArtifact(day);
-        const run_day = b.addRunArtifact(day);
-        run_day.step.dependOn(b.getInstallStep());
-        run_step.dependOn(&run_day.step);
         try file.writer().print("    pub const {s} = @import(\"{s}\").main;\n", .{ day_name, file_path });
         try dayList.append(day_name);
     }
@@ -93,4 +72,22 @@ pub fn build(b: *std.Build) !void {
     try file.writeAll("};\n");
     try file.writeAll("};\n");
     file.close();
+
+    const run_step = b.step("run", "Run the runner");
+    // Emit the runner
+    const runner = b.addExecutable(.{
+        .name = "AoCRunner",
+        .root_source_file = b.path("runner.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    b.installArtifact(runner);
+    const run_runner = b.addRunArtifact(runner);
+    run_runner.step.dependOn(b.getInstallStep());
+    run_step.dependOn(&run_runner.step);
+
+    // pass the extra arguments into the runner
+    if (b.args) |args| {
+        run_runner.addArgs(args);
+    }
 }
