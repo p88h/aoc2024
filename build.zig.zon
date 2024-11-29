@@ -4,5 +4,5 @@
     .dependencies = .{
         .raylib = .{ .path = "raylib" },
     },
-    .paths = .{ "build.zig", "build.zig.zon", "vis", "src" },
+    .paths = .{ "build.zig", "build.zig.zon", "runner.zig", "vis", "src" },
 }

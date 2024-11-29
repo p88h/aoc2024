@@ -56,9 +56,19 @@ pub fn build(b: *std.Build) !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
+    fs.cwd().deleteFile("_days.zig") catch {};
+    // compose a library with all the days that will also create the dispatcher source
+    const file = try fs.cwd().createFile("_days.zig", .{});
+    try file.writeAll("pub const Days = struct {\n");
+    // some magical incantations
+    try file.writeAll("    const fnError = error{Invalid};\n");
+    try file.writeAll("    const fnType = *const fn () fnError!void;\n");
+    var dayList = std.ArrayList([]const u8).init(allocator);
+    defer dayList.deinit();
     while (try iter.next()) |entry| {
         var paths = [_]cstr{ "src", entry.name };
         const file_path = try fs.path.join(allocator, &paths);
+        const day_name = try std.fmt.allocPrint(allocator, "day{s}", .{entry.name[3..5]});
         defer allocator.free(file_path);
 
         const day = b.addExecutable(.{
@@ -71,5 +81,16 @@ pub fn build(b: *std.Build) !void {
         const run_day = b.addRunArtifact(day);
         run_day.step.dependOn(b.getInstallStep());
         run_step.dependOn(&run_day.step);
+        try file.writer().print("    pub const {s} = @import(\"{s}\").main;\n", .{ day_name, file_path });
+        try dayList.append(day_name);
     }
+    try file.writer().print("    pub const last = {s};\n", .{dayList.getLast()});
+    try file.writeAll("    pub const all = [_]fnType { ");
+    for (dayList.items) |str| {
+        try file.writer().print("{s}, ", .{str});
+        allocator.free(str);
+    }
+    try file.writeAll("};\n");
+    try file.writeAll("};\n");
+    file.close();
 }

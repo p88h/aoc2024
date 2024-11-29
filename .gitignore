@@ -2,3 +2,4 @@
 zig-out/
 resources/
 *.mp4
+_*.zig
