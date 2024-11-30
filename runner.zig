@@ -17,9 +17,9 @@ pub fn main() !void {
 
     if (runAll) {
         for (days.all) |fun| {
-            try fun();
+            fun();
         }
     } else {
-        try days.last();
+        days.last();
     }
 }

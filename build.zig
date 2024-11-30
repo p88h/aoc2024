@@ -42,8 +42,7 @@ pub fn build(b: *std.Build) !void {
     const file = try fs.cwd().createFile("_days.zig", .{});
     try file.writeAll("pub const Days = struct {\n");
     // some magical incantations
-    try file.writeAll("    const fnError = error{Invalid};\n");
-    try file.writeAll("    const fnType = *const fn () fnError!void;\n");
+    try file.writeAll("    const fnType = *const fn () void;\n");
     var dayList = std.ArrayList([]const u8).init(allocator);
     defer dayList.deinit();
 
@@ -55,6 +54,7 @@ pub fn build(b: *std.Build) !void {
     defer iter_src.close();
     var iter = iter_src.iterate();
     while (try iter.next()) |entry| {
+        if (!std.mem.startsWith(u8, entry.name, "day")) continue;
         var paths = [_]cstr{ "src", entry.name };
         const file_path = try fs.path.join(allocator, &paths);
         const day_name = try std.fmt.allocPrint(allocator, "day{s}", .{entry.name[3..5]});
