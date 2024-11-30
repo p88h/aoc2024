@@ -5,8 +5,8 @@ const handler = @import("common.zig").handler;
 pub fn main() !void {
     // somewhat less dynamic than runner, but meh.
     const days = struct {
-        pub const day00 = @import("day00.zig").handle;
-        pub const all = [_]handler{day00};
+        pub const vis00 = @import("vis00.zig").handle;
+        pub const all = [_]handler{vis00};
     };
     const ctx = struct {
         // comptime init static context to null
@@ -24,6 +24,7 @@ pub fn main() !void {
     var rec = false;
     var day: usize = days.all.len - 1;
     if (args.len > ap and std.mem.eql(u8, args[ap], "rec")) {
+        std.debug.print("Recording mode on\n", .{});
         rec = true;
         ap += 1;
     }

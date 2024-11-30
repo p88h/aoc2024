@@ -22,19 +22,18 @@ pub fn build(b: *std.Build) !void {
     });
     const libray = raylib.artifact("raylib");
 
-    const exe = b.addExecutable(.{
+    const vis_main = b.addExecutable(.{
         .name = "RayVisMain",
         .root_source_file = b.path("vis/main.zig"),
         .target = target,
         .optimize = optimize,
     });
-    exe.linkLibrary(libray);
-    exe.linkLibrary(libvis);
-    b.installArtifact(exe);
-    const vis_cmd = b.addRunArtifact(exe);
+    vis_main.linkLibrary(libray);
+    vis_main.linkLibrary(libvis);
+    b.installArtifact(vis_main);
+    const vis_cmd = b.addRunArtifact(vis_main);
     // needed ?
     vis_cmd.step.dependOn(b.getInstallStep());
-
     const vis_step = b.step("vis", "Run the visualisation app");
     vis_step.dependOn(&vis_cmd.step);
 
@@ -73,7 +72,6 @@ pub fn build(b: *std.Build) !void {
     try file.writeAll("};\n");
     file.close();
 
-    const run_step = b.step("run", "Run the runner");
     // Emit the runner
     const runner = b.addExecutable(.{
         .name = "AoCRunner",
@@ -82,12 +80,14 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
     b.installArtifact(runner);
-    const run_runner = b.addRunArtifact(runner);
-    run_runner.step.dependOn(b.getInstallStep());
-    run_step.dependOn(&run_runner.step);
+    const run_cmd = b.addRunArtifact(runner);
+    run_cmd.step.dependOn(b.getInstallStep());
+    const run_step = b.step("run", "Run the runner");
+    run_step.dependOn(&run_cmd.step);
 
     // pass the extra arguments into the runner
     if (b.args) |args| {
-        run_runner.addArgs(args);
+        run_cmd.addArgs(args);
+        vis_cmd.addArgs(args);
     }
 }

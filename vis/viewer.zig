@@ -40,11 +40,11 @@ pub const Viewer = struct {
             ray.EndDrawing();
             if (self.rec) {
                 const img = ray.LoadImageFromScreen();
-                try self.ff.put(img.data.?, img.height * img.width * 4);
+                self.ff.put(img.data.?, img.height * img.width * 4);
                 ray.MemFree(img.data);
             }
         }
         if (self.rec)
-            try self.ff.finish();
+            self.ff.finish();
     }
 };
