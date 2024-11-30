@@ -7,10 +7,13 @@ This years language of choice is Zig. Only Zig.
 
 With some C dependencies, I guess, but that's the point of Zig, right?
 
-Hopefully, you should be able to run all the solution code by using
+Hopefully, you should be able to run the solutions code by using
 
 ```
+# run last day
 $ zig build run
+# run all days
+$ zig build run -- all
 ```
 
 But this is Zig. YMMV. 
@@ -28,7 +31,8 @@ There will be some visualisations implemented with Raylib. To get this to run yo
 ```
 # this is only needed once, really
 $ git submodule init 
-$ zig build vis
+# you can also add `-- rec` to have it create a video file. 
+$ zig build vis 
 ```
 
 Again, YMMV. Right now it doesn't do much, but seems to work. 
