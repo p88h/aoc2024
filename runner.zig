@@ -8,15 +8,15 @@ pub fn run_day(allocator: Allocator, work: common.Worker) void {
     const filename = std.fmt.allocPrint(allocator, "input/day{s}.txt", .{work.day}) catch unreachable;
     const lines = common.read_lines(allocator, filename) catch unreachable;
     var t = std.time.Timer.start() catch unreachable;
-    var ctx: *anyopaque = undefined;
     const iter = 100000;
-    for (0..iter) |_| ctx = work.parse(allocator, lines);
+    var ctxs = allocator.alloc(*anyopaque, iter) catch unreachable;
+    for (0..iter) |i| ctxs[i] = work.parse(allocator, lines);
     std.debug.print("parse: {d}ns\n", .{t.read() / iter});
     t.reset();
-    for (0..iter) |_| _ = work.part1(ctx);
+    for (0..iter) |i| _ = work.part1(ctxs[i]);
     std.debug.print("part1: {d}ns\n", .{t.read() / iter});
     t.reset();
-    for (0..iter) |_| _ = work.part2(ctx);
+    for (0..iter) |i| _ = work.part2(ctxs[i]);
     std.debug.print("part2: {d}ns\n", .{t.read() / iter});
 }
 
