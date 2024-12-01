@@ -27,7 +27,7 @@ pub fn parse(allocator: Allocator, lines: [][]const u8) *anyopaque {
     return @ptrCast(ctx);
 }
 
-pub fn part1(ptr: *anyopaque) void {
+pub fn part1(ptr: *anyopaque) []u8 {
     const ctx: *Context = @alignCast(@ptrCast(ptr));
     std.mem.sort(i32, ctx.left, {}, comptime std.sort.asc(i32));
     std.mem.sort(i32, ctx.right, {}, comptime std.sort.asc(i32));
@@ -36,16 +36,16 @@ pub fn part1(ptr: *anyopaque) void {
         const diff = @abs(ctx.left[i] - ctx.right[i]);
         tot += diff;
     }
-    std.debug.print("{d}\n", .{tot});
+    return std.fmt.allocPrint(ctx.allocator, "{d}\n", .{tot}) catch unreachable;
 }
 
-pub fn part2(ptr: *anyopaque) void {
+pub fn part2(ptr: *anyopaque) []u8 {
     const ctx: *Context = @alignCast(@ptrCast(ptr));
     var ret: i32 = 0;
     var cmap = [_]i32{0} ** 100000;
     for (0..ctx.cnt) |i| cmap[@intCast(ctx.right[i])] += 1;
     for (0..ctx.cnt) |i| ret += ctx.left[i] * cmap[@intCast(ctx.left[i])];
-    std.debug.print("{d}\n", .{ret});
+    return std.fmt.allocPrint(ctx.allocator, "{d}\n", .{ret}) catch unreachable;
 }
 
 // boilerplate

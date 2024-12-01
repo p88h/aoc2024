@@ -7,9 +7,17 @@ pub fn run_day(allocator: Allocator, work: common.Worker) void {
     std.debug.print("day {s}\n", .{work.day});
     const filename = std.fmt.allocPrint(allocator, "input/day{s}.txt", .{work.day}) catch unreachable;
     const lines = common.read_lines(allocator, filename) catch unreachable;
-    const ctx = work.parse(allocator, lines);
-    work.part1(ctx);
-    work.part2(ctx);
+    var t = std.time.Timer.start() catch unreachable;
+    var ctx: *anyopaque = undefined;
+    const iter = 100000;
+    for (0..iter) |_| ctx = work.parse(allocator, lines);
+    std.debug.print("parse: {d}ns\n", .{t.read() / iter});
+    t.reset();
+    for (0..iter) |_| _ = work.part1(ctx);
+    std.debug.print("part1: {d}ns\n", .{t.read() / iter});
+    t.reset();
+    for (0..iter) |_| _ = work.part2(ctx);
+    std.debug.print("part2: {d}ns\n", .{t.read() / iter});
 }
 
 pub fn main() !void {

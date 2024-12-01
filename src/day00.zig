@@ -3,23 +3,25 @@ const Allocator = std.mem.Allocator;
 const common = @import("common.zig");
 
 const Context = struct {
+    allocator: Allocator,
     lines: [][]const u8,
 };
 
 pub fn parse(allocator: Allocator, lines: [][]const u8) *anyopaque {
     var ctx = allocator.create(Context) catch unreachable;
     ctx.lines = lines;
+    ctx.allocator = allocator;
     return @ptrCast(ctx);
 }
 
-pub fn part1(ptr: *anyopaque) void {
+pub fn part1(ptr: *anyopaque) []u8 {
     const ctx: *Context = @alignCast(@ptrCast(ptr));
-    std.debug.print("{d}\n", .{ctx.lines.len});
+    return std.fmt.allocPrint(ctx.allocator, "{d}\n", .{ctx.lines.len}) catch unreachable;
 }
 
-pub fn part2(ptr: *anyopaque) void {
+pub fn part2(ptr: *anyopaque) []u8 {
     const ctx: *Context = @alignCast(@ptrCast(ptr));
-    std.debug.print("{d}\n", .{ctx.lines[0].len});
+    return std.fmt.allocPrint(ctx.allocator, "{d}\n", .{ctx.lines[0].len}) catch unreachable;
 }
 
 // boilerplate

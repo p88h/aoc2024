@@ -15,8 +15,8 @@ pub fn read_lines(allocator: Allocator, filename: []const u8) ![][]const u8 {
 pub const Worker = struct {
     day: []const u8,
     parse: *const fn (allocator: Allocator, lines: [][]const u8) *anyopaque,
-    part1: *const fn (ctx: *anyopaque) void,
-    part2: *const fn (ctx: *anyopaque) void,
+    part1: *const fn (ctx: *anyopaque) []u8,
+    part2: *const fn (ctx: *anyopaque) []u8,
 };
 
 pub fn run_day(work: Worker) void {
@@ -26,6 +26,6 @@ pub fn run_day(work: Worker) void {
     const filename = std.fmt.allocPrint(allocator, "input/day{s}.txt", .{work.day}) catch unreachable;
     const lines = read_lines(allocator, filename) catch unreachable;
     const ctx = work.parse(allocator, lines);
-    work.part1(ctx);
-    work.part2(ctx);
+    std.debug.print("{s}", .{work.part1(ctx)});
+    std.debug.print("{s}", .{work.part2(ctx)});
 }

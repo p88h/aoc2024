@@ -13,7 +13,7 @@ Hopefully, you should be able to run the solutions code by using
 # run last day
 $ zig build run
 # run all days
-$ zig build run -- all
+$ zig build -Doptimize=ReleaseFast run -- all
 ```
 
 But this is Zig. YMMV. 
@@ -32,7 +32,7 @@ There will be some visualisations implemented with Raylib. To get this to run yo
 # this is only needed once, really
 $ git submodule init 
 # you can also add `-- rec` to have it create a video file. 
-$ zig build vis 
+$ zig build -Doptimize=ReleaseSafe vis 
 ```
 
 Again, YMMV. Right now it doesn't do much, but seems to work. 
