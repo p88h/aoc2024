@@ -28,8 +28,8 @@ pub const Viewer = struct {
         return v;
     }
 
-    pub fn loop(self: *Viewer, render: *const fn (idx: c_int) bool) !void {
-        var cnt: c_int = 0;
+    pub fn loop(self: *Viewer, render: *const fn (idx: usize) bool) !void {
+        var cnt: usize = 0;
         var done: bool = false;
         defer ray.CloseWindow();
         while (!ray.WindowShouldClose() and !done) {

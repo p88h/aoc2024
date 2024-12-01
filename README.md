@@ -26,7 +26,7 @@ TBD
 Visualisations
 ==============
 
-There will be some visualisations implemented with Raylib. To get this to run you can try:
+There are also some visualisations implemented with Raylib. To get this to run you can try:
 
 ```
 # this is only needed once, really
@@ -53,7 +53,7 @@ $ sudo apt upgrade
 
 If all fails, or you don't care about tinkering with build system enough, visualisations are also published to [YouTube](https://www.youtube.com/@p88h.)
 
-2024 playlist pending. 
+You can also hop on straight to the [2024 playlist](https://www.youtube.com/playlist?list=PLgRrl8I0Q168GBdeJp_GqNYsWgRCmVgu5)
 
 Copyright disclaimer
 ====================

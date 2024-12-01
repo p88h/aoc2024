@@ -49,9 +49,13 @@ pub const ASCIIRay = struct {
         return a;
     }
 
-    pub fn write(self: *ASCIIRay, msg: []const u8) void {
-        ray.DrawTextEx(self.font, msg.ptr, .{ .x = self.cx, .y = self.cy }, self.fsize, 1, ray.RAYWHITE);
+    pub fn writeEx(self: *ASCIIRay, msg: []const u8, color: ray.Color) void {
+        ray.DrawTextEx(self.font, msg.ptr, .{ .x = self.cx, .y = self.cy }, self.fsize, 1, color);
         self.cx += @as(f32, @floatFromInt(msg.len)) * (self.fsize / 2);
+    }
+
+    pub fn write(self: *ASCIIRay, msg: []const u8) void {
+        self.writeEx(msg, ray.RAYWHITE);
     }
 
     pub fn writeln(self: *ASCIIRay, msg: []const u8) void {
@@ -62,13 +66,13 @@ pub const ASCIIRay = struct {
         if (self.cy > maxy) self.cy -= maxy;
     }
 
-    pub fn writeXY(self: *ASCIIRay, msg: []const u8, x: i32, y: i32) void {
+    pub fn writeXY(self: *ASCIIRay, msg: []const u8, x: i32, y: i32, color: ray.Color) void {
         self.cx = @as(f32, @floatFromInt(x)) * self.fsize / 2;
         self.cy = @as(f32, @floatFromInt(y)) * self.fsize;
-        self.write(msg);
+        self.writeEx(msg, color);
     }
 
-    pub fn loop(self: *ASCIIRay, render: *const fn (idx: c_int) bool) !void {
+    pub fn loop(self: *ASCIIRay, render: *const fn (idx: usize) bool) !void {
         try self.v.loop(render);
     }
 };
