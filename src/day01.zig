@@ -1,5 +1,5 @@
 const std = @import("std");
-const run_day = @import("common.zig").run_day;
+const common = @import("common.zig");
 const Allocator = std.mem.Allocator;
 
 const Context = struct {
@@ -9,7 +9,7 @@ const Context = struct {
     right: []i32,
 };
 
-pub fn parse(allocator: Allocator, lines: [][]const u8) *Context {
+pub fn parse(allocator: Allocator, lines: [][]const u8) *anyopaque {
     var ctx = allocator.create(Context) catch unreachable;
     ctx.cnt = lines.len;
     ctx.left = allocator.alloc(i32, ctx.cnt) catch unreachable;
@@ -24,10 +24,11 @@ pub fn parse(allocator: Allocator, lines: [][]const u8) *Context {
         ctx.left[i] = v1;
         ctx.right[i] = v2;
     }
-    return ctx;
+    return @ptrCast(ctx);
 }
 
-pub fn part1(ctx: *Context) void {
+pub fn part1(ptr: *anyopaque) void {
+    const ctx: *Context = @alignCast(@ptrCast(ptr));
     std.mem.sort(i32, ctx.left, {}, comptime std.sort.asc(i32));
     std.mem.sort(i32, ctx.right, {}, comptime std.sort.asc(i32));
     var tot: u32 = 0;
@@ -38,7 +39,8 @@ pub fn part1(ctx: *Context) void {
     std.debug.print("{d}\n", .{tot});
 }
 
-pub fn part2(ctx: *Context) void {
+pub fn part2(ptr: *anyopaque) void {
+    const ctx: *Context = @alignCast(@ptrCast(ptr));
     var ret: i32 = 0;
     var cmap = [_]i32{0} ** 100000;
     for (0..ctx.cnt) |i| cmap[@intCast(ctx.right[i])] += 1;
@@ -46,6 +48,8 @@ pub fn part2(ctx: *Context) void {
     std.debug.print("{d}\n", .{ret});
 }
 
+// boilerplate
+pub const work = common.Worker{ .day = "01", .parse = parse, .part1 = part1, .part2 = part2 };
 pub fn main() void {
-    run_day(Context, "01", .{ .parse = parse, .part1 = part1, .part2 = part2 });
+    common.run_day(work);
 }

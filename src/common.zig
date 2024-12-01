@@ -12,19 +12,18 @@ pub fn read_lines(allocator: Allocator, filename: []const u8) ![][]const u8 {
     return lines.items;
 }
 
-pub fn Worker(comptime T: type) type {
-    return struct {
-        parse: *const fn (allocator: Allocator, lines: [][]const u8) *T,
-        part1: *const fn (ctx: *T) void,
-        part2: *const fn (ctx: *T) void,
-    };
-}
+pub const Worker = struct {
+    day: []const u8,
+    parse: *const fn (allocator: Allocator, lines: [][]const u8) *anyopaque,
+    part1: *const fn (ctx: *anyopaque) void,
+    part2: *const fn (ctx: *anyopaque) void,
+};
 
-pub fn run_day(comptime T: type, day: []const u8, work: Worker(T)) void {
+pub fn run_day(work: Worker) void {
     var aa = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer _ = aa.deinit();
     const allocator = aa.allocator();
-    const filename = std.fmt.allocPrint(allocator, "input/day{s}.txt", .{day}) catch unreachable;
+    const filename = std.fmt.allocPrint(allocator, "input/day{s}.txt", .{work.day}) catch unreachable;
     const lines = read_lines(allocator, filename) catch unreachable;
     const ctx = work.parse(allocator, lines);
     work.part1(ctx);
