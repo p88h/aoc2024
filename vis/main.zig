@@ -1,25 +1,10 @@
 const std = @import("std");
-const ASCIIRay = @import("asciiray.zig").ASCIIRay;
-const handler = @import("common.zig").handler;
+const days = @import("days.zig").days;
 
 pub fn main() !void {
-    // somewhat less dynamic than runner, but meh.
-    const days = struct {
-        pub const vis00 = @import("vis00.zig").handle;
-        pub const all = [_]handler{vis00};
-    };
-    const ctx = struct {
-        // comptime init static context to null
-        var a: *ASCIIRay = @ptrFromInt(@alignOf(ASCIIRay));
-        // this is simpler
-        var handle: handler = days.all[days.all.len - 1];
-    };
-    // real init at runtime. Use arena allocator for all context stuff.
-    var gpa = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
+    // parse arguments
+    const args = try std.process.argsAlloc(std.heap.page_allocator);
+    defer std.process.argsFree(std.heap.page_allocator, args);
     var ap: usize = 1;
     var rec = false;
     var day: usize = days.all.len - 1;
@@ -31,11 +16,5 @@ pub fn main() !void {
     if (args.len > ap) {
         day += 1;
     }
-    ctx.a = try ASCIIRay.init(allocator, 1920, 1080, 15, rec, 24);
-    ctx.handle = days.all[day];
-    try ctx.a.loop(struct {
-        pub fn render(idx: c_int) bool {
-            return ctx.handle.step(ctx.a, idx);
-        }
-    }.render);
+    try days.all[day].run(rec);
 }

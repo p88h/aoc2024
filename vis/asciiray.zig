@@ -51,7 +51,6 @@ pub const ASCIIRay = struct {
 
     pub fn write(self: *ASCIIRay, msg: []const u8) void {
         ray.DrawTextEx(self.font, msg.ptr, .{ .x = self.cx, .y = self.cy }, self.fsize, 1, ray.RAYWHITE);
-        ray.DrawText(msg.ptr, @intFromFloat(self.cx), @intFromFloat(self.cy + self.fsize), @intFromFloat(self.fsize), ray.RAYWHITE);
         self.cx += @as(f32, @floatFromInt(msg.len)) * (self.fsize / 2);
     }
 
@@ -63,9 +62,9 @@ pub const ASCIIRay = struct {
         if (self.cy > maxy) self.cy -= maxy;
     }
 
-    pub fn writeXY(self: *ASCIIRay, msg: []const u8, x: f32, y: f32) void {
-        self.cx = x * self.fsize / 2;
-        self.cy = y * self.fsize;
+    pub fn writeXY(self: *ASCIIRay, msg: []const u8, x: i32, y: i32) void {
+        self.cx = @as(f32, @floatFromInt(x)) * self.fsize / 2;
+        self.cy = @as(f32, @floatFromInt(y)) * self.fsize;
         self.write(msg);
     }
 
