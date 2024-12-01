@@ -10,12 +10,10 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const libvis = b.addStaticLibrary(.{
-        .name = "RayVis",
-        .root_source_file = b.path("vis/asciiray.zig"),
-        .target = target,
-        .optimize = optimize,
+    const libsrc = b.createModule(.{
+        .root_source_file = b.path("_days.zig"),
     });
+
     const raylib = b.dependency("raylib", .{
         .target = target,
         .optimize = optimize,
@@ -28,8 +26,8 @@ pub fn build(b: *std.Build) !void {
         .target = target,
         .optimize = optimize,
     });
+    vis_main.root_module.addImport("src", libsrc);
     vis_main.linkLibrary(libray);
-    vis_main.linkLibrary(libvis);
     b.installArtifact(vis_main);
     const vis_cmd = b.addRunArtifact(vis_main);
     // needed ?
@@ -40,8 +38,7 @@ pub fn build(b: *std.Build) !void {
     // compose a library with all the days that will be populated into runner source
     fs.cwd().deleteFile("_days.zig") catch {};
     const file = try fs.cwd().createFile("_days.zig", .{});
-    try file.writeAll("const common = @import(\"src/common.zig\");");
-    try file.writeAll("pub const Days = struct {\n");
+    try file.writeAll("pub const common = @import(\"src/common.zig\");\n");
     // some magical incantations
     var dayList = std.ArrayList([]const u8).init(allocator);
     defer dayList.deinit();
@@ -59,18 +56,19 @@ pub fn build(b: *std.Build) !void {
         const file_path = try fs.path.join(allocator, &paths);
         const day_name = try std.fmt.allocPrint(allocator, "day{s}", .{entry.name[3..5]});
         defer allocator.free(file_path);
-        try file.writer().print("    pub const {s} = @import(\"{s}\").work;\n", .{ day_name, file_path });
+        try file.writer().print("pub const {s} = @import(\"{s}\");\n", .{ day_name, file_path });
         try dayList.append(day_name);
     }
+    try file.writeAll("pub const Days = struct {\n");
     std.mem.sort([]const u8, dayList.items, {}, struct {
         pub fn lt(_: void, lhs: []const u8, rhs: []const u8) bool {
             return std.mem.lessThan(u8, lhs, rhs);
         }
     }.lt);
-    try file.writer().print("    pub const last = {s};\n", .{dayList.getLast()});
+    try file.writer().print("    pub const last = {s}.work;\n", .{dayList.getLast()});
     try file.writeAll("    pub const all = [_]common.Worker { ");
     for (dayList.items) |str| {
-        try file.writer().print("{s}, ", .{str});
+        try file.writer().print("{s}.work, ", .{str});
         allocator.free(str);
     }
     try file.writeAll("};\n");

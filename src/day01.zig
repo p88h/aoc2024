@@ -2,7 +2,7 @@ const std = @import("std");
 const common = @import("common.zig");
 const Allocator = std.mem.Allocator;
 
-const Context = struct {
+pub const Context = struct {
     allocator: Allocator,
     cnt: usize,
     left: []i32,

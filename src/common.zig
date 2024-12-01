@@ -19,13 +19,16 @@ pub const Worker = struct {
     part2: *const fn (ctx: *anyopaque) []u8,
 };
 
+pub fn create_ctx(allocator: Allocator, work: Worker) *anyopaque {
+    const filename = std.fmt.allocPrint(allocator, "input/day{s}.txt", .{work.day}) catch unreachable;
+    const lines = read_lines(allocator, filename) catch unreachable;
+    return work.parse(allocator, lines);
+}
+
 pub fn run_day(work: Worker) void {
     var aa = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer _ = aa.deinit();
-    const allocator = aa.allocator();
-    const filename = std.fmt.allocPrint(allocator, "input/day{s}.txt", .{work.day}) catch unreachable;
-    const lines = read_lines(allocator, filename) catch unreachable;
-    const ctx = work.parse(allocator, lines);
+    const ctx = create_ctx(aa.allocator(), work);
     std.debug.print("{s}", .{work.part1(ctx)});
     std.debug.print("{s}", .{work.part2(ctx)});
 }
