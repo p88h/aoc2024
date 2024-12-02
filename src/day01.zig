@@ -9,6 +9,16 @@ pub const Context = struct {
     right: []i32,
 };
 
+pub fn parseVec(line: []const u8, vec: *@Vector(4, i32)) usize {
+    var p: usize = 0;
+    for (0..line.len) |i| {
+        if (line[i] == ' ') {
+            if (line[i - 1] != ' ') p += 1;
+        } else vec[p] = vec[p] * 10 + line[i] - '0';
+    }
+    return p + 1;
+}
+
 pub fn parse(allocator: Allocator, lines: [][]const u8) *anyopaque {
     var ctx = allocator.create(Context) catch unreachable;
     ctx.cnt = lines.len;
@@ -17,12 +27,10 @@ pub fn parse(allocator: Allocator, lines: [][]const u8) *anyopaque {
     ctx.allocator = allocator;
     for (0..ctx.cnt) |i| {
         const line = lines[i];
-        var sp = std.mem.indexOf(u8, line, " ").?;
-        const v1 = std.fmt.parseInt(i32, line[0..sp], 10) catch unreachable;
-        while (line[sp] == ' ') sp += 1;
-        const v2 = std.fmt.parseInt(i32, line[sp..], 10) catch unreachable;
-        ctx.left[i] = v1;
-        ctx.right[i] = v2;
+        var tmp: @Vector(4, i32) = @splat(0);
+        _ = parseVec(line, &tmp);
+        ctx.left[i] = tmp[0];
+        ctx.right[i] = tmp[1];
     }
     return @ptrCast(ctx);
 }

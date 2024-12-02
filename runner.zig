@@ -3,21 +3,35 @@ const common = @import("src/common.zig");
 const days = @import("_days.zig").Days;
 const Allocator = std.mem.Allocator;
 
+pub fn print_time(t: u64) void {
+    const units = [_][]const u8{ "ns", "µs", "ms" };
+    var ui: usize = 0;
+    var d = t;
+    var r: u64 = 0;
+    while (d > 99) {
+        r = (d % 1000) / 100;
+        d = d / 1000;
+        ui += 1;
+    }
+    std.debug.print("\t{d}.{d} {s}", .{ d, r, units[ui] });
+}
+
 pub fn run_day(allocator: Allocator, work: common.Worker) void {
-    std.debug.print("day {s}\n", .{work.day});
+    std.debug.print("day {s}:", .{work.day});
     const filename = std.fmt.allocPrint(allocator, "input/day{s}.txt", .{work.day}) catch unreachable;
     const lines = common.read_lines(allocator, filename) catch unreachable;
     var t = std.time.Timer.start() catch unreachable;
     const iter = 100000;
     var ctxs = allocator.alloc(*anyopaque, iter) catch unreachable;
     for (0..iter) |i| ctxs[i] = work.parse(allocator, lines);
-    std.debug.print("parse: {d}ns\n", .{t.read() / iter});
+    print_time(t.read() / iter);
     t.reset();
     for (0..iter) |i| _ = work.part1(ctxs[i]);
-    std.debug.print("part1: {d}ns\n", .{t.read() / iter});
+    print_time(t.read() / iter);
     t.reset();
     for (0..iter) |i| _ = work.part2(ctxs[i]);
-    std.debug.print("part2: {d}ns\n", .{t.read() / iter});
+    print_time(t.read() / iter);
+    std.debug.print("\n", .{});
 }
 
 pub fn main() !void {
@@ -33,7 +47,7 @@ pub fn main() !void {
         if (std.mem.eql(u8, arg, "all")) runAll = true;
         if (std.mem.eql(u8, arg, "bench")) runBench = true;
     }
-
+    std.debug.print("\tparse\tpart1\tpart2\n", .{});
     if (runAll) {
         for (days.all) |work| run_day(allocator, work);
     } else {
