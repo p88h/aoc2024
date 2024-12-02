@@ -72,6 +72,12 @@ pub const ASCIIRay = struct {
         self.writeEx(msg, color);
     }
 
+    pub fn writeat(self: *ASCIIRay, msg: []const u8, x: i32, y: i32, color: ray.Color) void {
+        self.cx = @as(f32, @floatFromInt(x));
+        self.cy = @as(f32, @floatFromInt(y));
+        self.writeEx(msg, color);
+    }
+
     pub fn loop(self: *ASCIIRay, render: *const fn (idx: usize) bool) !void {
         try self.v.loop(render);
     }

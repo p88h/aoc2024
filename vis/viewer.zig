@@ -7,6 +7,7 @@ const ray = @cImport({
 const Allocator = std.mem.Allocator;
 
 pub const Viewer = struct {
+    allocator: Allocator,
     width: c_int,
     height: c_int,
     fps: c_int,
@@ -16,15 +17,13 @@ pub const Viewer = struct {
 
     pub fn init(allocator: Allocator, w: c_int, h: c_int, fps: c_int, t: []const u8, rec: bool) !*Viewer {
         ray.InitWindow(w, h, t.ptr);
-        ray.SetTargetFPS(fps);
         var v = try allocator.create(Viewer);
         v.width = w;
         v.height = h;
         v.fps = fps;
         v.title = t;
         v.rec = rec;
-        if (rec)
-            v.ff = try FFPipe.init(allocator, w, h, fps);
+        v.allocator = allocator;
         return v;
     }
 
@@ -32,6 +31,9 @@ pub const Viewer = struct {
         var cnt: usize = 0;
         var done: bool = false;
         defer ray.CloseWindow();
+        ray.SetTargetFPS(self.fps);
+        if (self.rec)
+            self.ff = try FFPipe.init(self.allocator, self.width, self.height, self.fps);
         while (!ray.WindowShouldClose() and !done) {
             ray.BeginDrawing();
             ray.ClearBackground(ray.BLACK);

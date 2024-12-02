@@ -3,5 +3,6 @@ const handler = @import("handler.zig").handler;
 pub const days = struct {
     pub const vis00 = @import("vis00.zig").handle;
     pub const vis01 = @import("vis01.zig").handle;
-    pub const all = [_]handler{ vis00, vis01 };
+    pub const vis02 = @import("vis02.zig").handle;
+    pub const all = [_]handler{ vis00, vis01, vis02 };
 };
