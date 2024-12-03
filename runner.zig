@@ -19,11 +19,12 @@ pub fn print_time(t: u64) void {
 pub fn run_day(allocator: Allocator, work: common.Worker) void {
     std.debug.print("day {s}:", .{work.day});
     const filename = std.fmt.allocPrint(allocator, "input/day{s}.txt", .{work.day}) catch unreachable;
-    const lines = common.read_lines(allocator, filename) catch unreachable;
+    const buf = common.read_file(allocator, filename);
+    const lines = common.split_lines(allocator, buf);
     var t = std.time.Timer.start() catch unreachable;
     const iter = 100000;
     var ctxs = allocator.alloc(*anyopaque, iter) catch unreachable;
-    for (0..iter) |i| ctxs[i] = work.parse(allocator, lines);
+    for (0..iter) |i| ctxs[i] = work.parse(allocator, buf, lines);
     print_time(t.read() / iter);
     t.reset();
     for (0..iter) |i| _ = work.part1(ctxs[i]);

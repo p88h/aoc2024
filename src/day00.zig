@@ -7,7 +7,7 @@ const Context = struct {
     lines: [][]const u8,
 };
 
-pub fn parse(allocator: Allocator, lines: [][]const u8) *anyopaque {
+pub fn parse(allocator: Allocator, _: []u8, lines: [][]const u8) *anyopaque {
     var ctx = allocator.create(Context) catch unreachable;
     ctx.lines = lines;
     ctx.allocator = allocator;

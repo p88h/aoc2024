@@ -17,7 +17,7 @@ pub fn parseVec(line: []const u8, vec: *vec8) usize {
     return p + 1;
 }
 
-pub fn parse(allocator: Allocator, lines: [][]const u8) *anyopaque {
+pub fn parse(allocator: Allocator, _: []u8, lines: [][]const u8) *anyopaque {
     var ctx = allocator.create(Context) catch unreachable;
     ctx.cnt = allocator.alloc(usize, lines.len) catch unreachable;
     ctx.pak = allocator.alloc(vec8, lines.len) catch unreachable;
