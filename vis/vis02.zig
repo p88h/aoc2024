@@ -68,4 +68,4 @@ pub fn step(ptr: *anyopaque, a: *ASCIIRay, idx: usize) bool {
     return false;
 }
 
-pub const handle = handler{ .init = init, .step = step };
+pub const handle = handler{ .init = init, .step = step, .window = .{ .fps = 5 } };
