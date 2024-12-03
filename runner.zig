@@ -1,6 +1,6 @@
 const std = @import("std");
 const common = @import("src/common.zig");
-const days = @import("_days.zig").Days;
+const days = @import("src/_days.zig").Days;
 const Allocator = std.mem.Allocator;
 
 pub fn print_time(t: u64) void {

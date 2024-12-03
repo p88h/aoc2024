@@ -1,5 +1,5 @@
 const std = @import("std");
-const days = @import("days.zig").days;
+const days = @import("_days.zig").Days;
 
 pub fn main() !void {
     // parse arguments
@@ -14,7 +14,7 @@ pub fn main() !void {
         ap += 1;
     }
     if (args.len > ap) {
-        day += 1;
+        day = try std.fmt.parseInt(usize, args[ap], 10);
     }
     try days.all[day].run(rec);
 }
