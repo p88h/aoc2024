@@ -10,5 +10,5 @@ $ zig build -Doptimize=ReleaseFast run -- all
 day 01: 8.2 µs  16.9 µs 5.7 µs
 day 02: 12.4 µs 5.7 µs  17.5 µs
 day 03: 15.0 ns 14.6 µs 12.9 µs
-day 04: 9.0 ns  64.3 µs 25.0 µs
+day 04: 9.0 ns  54.5 µs 20.4 µs
 ```
