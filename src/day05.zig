@@ -2,7 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const common = @import("common.zig");
 
-const Context = struct {
+pub const Context = struct {
     allocator: Allocator,
     graph: [128]u128, // adjacency matrix
     insns: std.ArrayList([]u8),
