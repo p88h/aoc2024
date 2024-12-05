@@ -24,9 +24,13 @@ OS: Sonoma 14.7.1
 Zig: `0.13.0`
 
 ```
-	parse	part1	part2
-day 01:	8.1 µs	14.1 µs	6.4 µs
-day 02:	11.4 µs	1.6 µs	4.8 µs
-day 03:	7.0 ns	22.0 µs	18.5 µs
-day 04:	8.0 ns	28.2 µs	11.8 µs
+        parse   part1   part2   total
+day 00: 7.0 ns  11.0 ns 14.0 ns 33.0 ns
+day 01: 7.6 µs  13.7 µs 6.4 µs  27.7 µs
+day 02: 11.5 µs 1.3 µs  4.6 µs  17.5 µs
+day 03: 8.0 ns  20.5 µs 18.8 µs 39.3 µs
+day 04: 5.0 ns  29.2 µs 10.3 µs 39.6 µs
+day 05: 12.9 µs 2.0 µs  2.9 µs  17.9 µs
+
+all days total:         142.2 µs
 ```
