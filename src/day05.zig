@@ -64,12 +64,10 @@ pub fn part1(ptr: *anyopaque) []u8 {
         var bad = false;
         for (0..ilen) |j| {
             const p = cins[j];
-            var m: u8 = 255;
-            for (0..ctx.ecnt[p]) |k| m = @min(m, cpos[ctx.graph[p][k]]);
-            if (m < j) {
+            for (0..ctx.ecnt[p]) |k| if (cpos[ctx.graph[p][k]] < j) {
                 bad = true;
                 break;
-            }
+            };
         }
         if (!bad) {
             tot += @intCast(ctx.insns.items[i][ilen / 2]);
@@ -86,31 +84,19 @@ pub fn part2(ptr: *anyopaque) []u8 {
         const cpos = ctx.iposm.items[i];
         const ilen = cins.len;
         var fixs: u32 = 0;
+        var bad = false;
         for (0..ilen) |j| {
             const r = ilen - j - 1;
-            var p = cins[r];
-            var m: u8 = 255;
-            for (0..ctx.ecnt[p]) |k| m = @min(m, cpos[ctx.graph[p][k]]);
-            while (m < r) {
-                var th = ctx.insns.items[i][m];
-                cins[m] = p;
-                cpos[p] = m;
-                // fix it
-                for (m + 1..r + 1) |k| {
-                    const tt = cins[k];
-                    cins[k] = th;
-                    cpos[th] = @intCast(k);
-                    th = tt;
-                }
-                fixs += 1;
-                // redo this position
-                p = cins[r];
-                m = 255;
-                for (0..ctx.ecnt[p]) |k| m = @min(m, cpos[ctx.graph[p][k]]);
+            const p = cins[r];
+            var c: u32 = 0;
+            for (0..ctx.ecnt[p]) |k| {
+                if (cpos[ctx.graph[p][k]] < r) bad = true;
+                if (cpos[ctx.graph[p][k]] < 255) c += 1;
             }
+            if (c == ilen / 2) fixs = @intCast(p);
         }
-        if (fixs > 0) {
-            tot += @intCast(cins[ilen / 2]);
+        if (bad and fixs > 0) {
+            tot += @intCast(fixs);
         }
     }
     return std.fmt.allocPrint(ctx.allocator, "{d}\n", .{tot}) catch unreachable;
