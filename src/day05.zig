@@ -4,10 +4,9 @@ const common = @import("common.zig");
 
 const Context = struct {
     allocator: Allocator,
-    ecnt: [128]u8,
-    graph: [128][128]u32,
+    graph: [128]u128, // adjacency matrix
     insns: std.ArrayList([]u8),
-    iposm: std.ArrayList([]u8), // instruction position / mask
+    iposm: std.ArrayList(u128), // occurence masks
 };
 
 pub fn parseVec(line: []const u8, sep: comptime_int, T: type, len: comptime_int, vec: *@Vector(len, T)) usize {
@@ -24,28 +23,25 @@ pub fn parse(allocator: Allocator, _: []u8, lines: [][]const u8) *anyopaque {
     var ctx = allocator.create(Context) catch unreachable;
     ctx.allocator = allocator;
     var first = true;
-    @memset(&ctx.ecnt, 0);
+    @memset(&ctx.graph, 0);
     ctx.insns = std.ArrayList([]u8).init(allocator);
-    ctx.iposm = std.ArrayList([]u8).init(allocator);
+    ctx.iposm = std.ArrayList(u128).init(allocator);
     for (lines) |line| {
+        var tv1: @Vector(4, u32) = @splat(0);
         if (first) {
-            var v: @Vector(4, u32) = @splat(0);
-            if (parseVec(line, '|', u32, 4, &v) < 2) {
+            if (parseVec(line, '|', u32, 4, &tv1) < 2) {
                 first = false;
                 continue;
             }
-            const cl = ctx.ecnt[v[0]];
-            ctx.graph[v[0]][cl] = v[1];
-            ctx.ecnt[v[0]] = cl + 1;
+            ctx.graph[tv1[0]] |= @as(u128, 1) << @as(u7, @intCast(tv1[1]));
         } else {
-            var v: @Vector(32, u8) = @splat(0);
-            var cpos = allocator.alloc(u8, 100) catch unreachable;
-            @memset(cpos, 255);
-            const p = parseVec(line, ',', u8, 32, &v);
+            var tv2: @Vector(32, u8) = @splat(0);
+            var cpos: u128 = 0;
+            const p = parseVec(line, ',', u8, 32, &tv2);
             var cins = allocator.alloc(u8, p) catch unreachable;
             for (0..p) |i| {
-                cins[i] = v[i];
-                cpos[v[i]] = @intCast(i);
+                cins[i] = tv2[i];
+                cpos |= @as(u128, 1) << @as(u7, @intCast(tv2[i]));
             }
             ctx.iposm.append(cpos) catch unreachable;
             ctx.insns.append(cins) catch unreachable;
@@ -64,10 +60,12 @@ pub fn part1(ptr: *anyopaque) []u8 {
         var bad = false;
         for (0..ilen) |j| {
             const p = cins[j];
-            for (0..ctx.ecnt[p]) |k| if (cpos[ctx.graph[p][k]] < j) {
+            const pm = ctx.graph[p] & cpos;
+            const pp = @popCount(pm);
+            if (pp != ilen - j - 1) {
                 bad = true;
                 break;
-            };
+            }
         }
         if (!bad) {
             tot += @intCast(ctx.insns.items[i][ilen / 2]);
@@ -86,14 +84,11 @@ pub fn part2(ptr: *anyopaque) []u8 {
         var fixs: u32 = 0;
         var bad = false;
         for (0..ilen) |j| {
-            const r = ilen - j - 1;
-            const p = cins[r];
-            var c: u32 = 0;
-            for (0..ctx.ecnt[p]) |k| {
-                if (cpos[ctx.graph[p][k]] < r) bad = true;
-                if (cpos[ctx.graph[p][k]] < 255) c += 1;
-            }
-            if (c == ilen / 2) fixs = @intCast(p);
+            const p = cins[j];
+            const pm = ctx.graph[p] & cpos;
+            const pp = @popCount(pm);
+            if (pp != ilen - j - 1) bad = true;
+            if (pp == ilen / 2) fixs = @intCast(p);
         }
         if (bad and fixs > 0) {
             tot += @intCast(fixs);
