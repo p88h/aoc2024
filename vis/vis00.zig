@@ -1,15 +1,21 @@
 const std = @import("std");
 const handler = @import("handler.zig").handler;
+const common = @import("src").common;
 const ASCIIRay = @import("asciiray.zig").ASCIIRay;
 const Allocator = std.mem.Allocator;
+const ray = @cImport({
+    @cInclude("raylib.h");
+});
+const sol = @import("src").day00;
 
-pub fn init(_: Allocator, _: *ASCIIRay) *anyopaque {
-    return @ptrFromInt(@alignOf(anyopaque));
+pub fn init(allocator: Allocator, _: *ASCIIRay) *anyopaque {
+    return common.create_ctx(allocator, sol.work);
 }
 
-pub fn step(_: *anyopaque, a: *ASCIIRay, idx: usize) bool {
+pub fn step(ptr: *anyopaque, a: *ASCIIRay, idx: usize) bool {
+    const ctx: *sol.Context = @alignCast(@ptrCast(ptr));
     if (idx > 100) return true;
-    a.writeln("All work and no play makes Jack a dull boy");
+    a.writeln(ctx.lines[0]);
     return false;
 }
 
