@@ -25,14 +25,14 @@ pub fn step(ptr: *anyopaque, _: *ASCIIRay, _: usize) bool {
             if (y == ctx.gp.y and x == ctx.gp.x) ch = '*';
             switch (ch) {
                 '#' => ray.DrawRectangle(cx, cy, 8, 8, ray.BLUE),
-                'x' => ray.DrawRectangle(cx, cy, 8, 8, ray.GREEN),
+                'x' => ray.DrawRectangleLines(cx, cy, 8, 8, ray.GREEN),
                 '*' => ray.DrawRectangle(cx, cy, 8, 8, ray.RED),
                 else => ray.DrawRectangleLines(cx + 1, cy + 1, 6, 6, ray.DARKGRAY),
             }
         }
     }
-    while (ctx.ahead() == '#') ctx.gp.turn();
-    if (ctx.ahead() == 0) return true;
+    while (ctx.ahead(ctx.gp) == '#') ctx.gp.turn();
+    if (ctx.ahead(ctx.gp) == 0) return true;
     ctx.gp.move();
     return false;
 }
