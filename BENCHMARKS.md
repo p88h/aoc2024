@@ -31,6 +31,7 @@ day 02: 11.5 µs 1.3 µs  4.6 µs  17.5 µs
 day 03: 8.0 ns  20.5 µs 18.8 µs 39.3 µs
 day 04: 5.0 ns  29.2 µs 10.3 µs 39.6 µs
 day 05: 12.9 µs 2.0 µs  2.9 µs  17.9 µs
+day 06: 0.1 µs  11.3 µs 10.4 µs 22.0 µs
 
-all days total:         142.2 µs
+all days total:         164.2 µs
 ```
