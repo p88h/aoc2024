@@ -4,7 +4,7 @@ const days = @import("src/_days.zig").Days;
 const Allocator = std.mem.Allocator;
 
 fn print_time_(t: u64, fmax: comptime_int) void {
-    const units = [_][]const u8{ "ns", "µs", "ms" };
+    const units = [_][]const u8{ "ns", "µs", "ms", "s" };
     var ui: usize = 0;
     var d = t;
     var r: u64 = 0;

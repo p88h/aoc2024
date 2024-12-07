@@ -45,6 +45,10 @@ pub const Context = struct {
     buf: []u8,
     dim: usize,
     gp: Guard,
+    tid: usize,
+    ptr: *Context,
+    grp: std.Thread.WaitGroup,
+    tot: i32,
     pub fn map(self: *Context, x: i32, y: i32) u8 {
         if (y >= 0 and y < self.dim and x >= 0 and x < self.dim) {
             const pos: usize = @as(usize, @intCast(y)) * (self.dim + 1) + @as(usize, @intCast(x));
@@ -89,7 +93,9 @@ pub fn part1(ctx: *Context) []u8 {
     return std.fmt.allocPrint(ctx.allocator, "{d}", .{tot}) catch unreachable;
 }
 
-pub fn part2(ctx: *Context) []u8 {
+const numWorkers = 4;
+
+pub fn part2_sub(ctx: *Context) void {
     var tot: i32 = 0;
     var history = [_]bool{false} ** (1 << 19);
     var shadow = [_]i32{-1} ** (1 << 19);
@@ -110,7 +116,8 @@ pub fn part2(ctx: *Context) []u8 {
         }
         if (ctx.ahead(gp) == 0) break;
         // if there is an empty field, we maybe can place an obstacle
-        if (ctx.ahead(gp) == 'x') {
+        iter += 1;
+        if (ctx.ahead(gp) == 'x' and @rem(iter, numWorkers) == ctx.tid) {
             // shadow wall pos
             const gx = gp.x + gp.dx;
             const gy = gp.y + gp.dy;
@@ -119,7 +126,6 @@ pub fn part2(ctx: *Context) []u8 {
             var prevk2: i32 = -1;
             // std.debug.print("ghost walk at {d} from {d},{d} +{d}.{d}\n", .{ history.count(), gs.x, gs.y, gs.dx, gs.dy });
             gs.turn();
-            iter += 1;
             while (ctx.ahead(gs) != 0) {
                 if (ctx.ahead(gs) == '#') {
                     const gk: usize = @intCast(gs.key());
@@ -145,7 +151,38 @@ pub fn part2(ctx: *Context) []u8 {
         }
         gp.move();
     }
+    ctx.tot = tot;
+    ctx.ptr.grp.finish();
+}
+
+var scratch = [_][32768]u8{[_]u8{0} ** 32768} ** numWorkers;
+
+pub fn part2(ctx: *Context) []u8 {
     // std.debug.print("{d} {d}\n", .{ tot2, tot3 });
+    var ctxs = [_]Context{undefined} ** numWorkers;
+    var tot: i32 = 0;
+    ctx.grp.reset();
+    for (0..numWorkers) |i| {
+        ctxs[i] = Context{
+            .buf = &scratch[i],
+            .allocator = ctx.allocator,
+            .dim = ctx.dim,
+            .gp = ctx.gp,
+            .tid = i,
+            .ptr = ctx,
+            .grp = undefined,
+            .tot = 0,
+        };
+        // uh.
+        @memcpy(ctxs[i].buf[0..ctx.buf.len], ctx.buf);
+        ctx.grp.start();
+        common.pool.spawn(part2_sub, .{&ctxs[i]}) catch {
+            std.debug.panic("failed to spawn worker {d}\n", .{i});
+        };
+        // tot += part2_sub(&ctxs[i]);
+    }
+    common.pool.waitAndWork(&ctx.grp);
+    for (0..numWorkers) |idx| tot += ctxs[idx].tot;
     return std.fmt.allocPrint(ctx.allocator, "{d}", .{tot}) catch unreachable;
 }
 
