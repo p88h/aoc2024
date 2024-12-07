@@ -93,19 +93,20 @@ pub fn part1(ctx: *Context) []u8 {
     return std.fmt.allocPrint(ctx.allocator, "{d}", .{tot}) catch unreachable;
 }
 
-const numWorkers = 4;
+const numWorkers = 6;
 
 pub fn part2_sub(ctx: *Context) void {
     var tot: i32 = 0;
-    var history = [_]bool{false} ** (1 << 19);
-    var shadow = [_]i32{-1} ** (1 << 19);
-    var jumps = [_]i32{-1} ** (1 << 19);
+    var history = [_]bool{false} ** (1 << 18);
+    var shadow = [_]i16{-1} ** (1 << 18);
+    var jumps = [_]i32{-1} ** (1 << 18);
+    var skip = [_]bool{false} ** (1 << 16);
     var prevk: i32 = -1;
     var gp = ctx.gp;
-    var iter: i32 = 0;
+    var iter: i16 = 0;
     while (true) {
         // this will prevent shadow walls in this position
-        ctx.update(gp.x, gp.y, 'X');
+        skip[@intCast((gp.x << 8) + gp.y)] = true;
         // only handle history at the corners - this speeds things up a lot
         while (ctx.ahead(gp) == '#') {
             // build the jump accelerator
@@ -117,17 +118,21 @@ pub fn part2_sub(ctx: *Context) void {
         if (ctx.ahead(gp) == 0) break;
         // if there is an empty field, we maybe can place an obstacle
         iter += 1;
-        if (ctx.ahead(gp) == 'x' and @rem(iter, numWorkers) == ctx.tid) {
+        const gx = gp.x + gp.dx;
+        const gy = gp.y + gp.dy;
+        if (ctx.ahead(gp) == 'x' and @rem(iter, numWorkers) == ctx.tid and !skip[@intCast((gx << 8) + gy)]) {
             // shadow wall pos
-            const gx = gp.x + gp.dx;
-            const gy = gp.y + gp.dy;
-            ctx.update(gx, gy, '#');
             var gs = gp;
             var prevk2: i32 = -1;
             // std.debug.print("ghost walk at {d} from {d},{d} +{d}.{d}\n", .{ history.count(), gs.x, gs.y, gs.dx, gs.dy });
             gs.turn();
-            while (ctx.ahead(gs) != 0) {
-                if (ctx.ahead(gs) == '#') {
+            while (true) {
+                const nx = gs.x + gs.dx;
+                const ny = gs.y + gs.dy;
+                var ch = ctx.map(nx, ny);
+                if (ch == 0) break;
+                if (ch != '#' and nx == gx and ny == gy) ch = '#';
+                if (ch == '#') {
                     const gk: usize = @intCast(gs.key());
                     if (prevk2 >= 0) jumps[@intCast(prevk2)] = gs.key();
                     if (history[gk] or shadow[gk] == iter) break;
@@ -147,7 +152,6 @@ pub fn part2_sub(ctx: *Context) void {
             }
             // we did, in fact, loop.
             if (ctx.ahead(gs) != 0) tot += 1;
-            ctx.update(gx, gy, 'x');
         }
         gp.move();
     }
@@ -155,16 +159,13 @@ pub fn part2_sub(ctx: *Context) void {
     ctx.ptr.grp.finish();
 }
 
-var scratch = [_][32768]u8{[_]u8{0} ** 32768} ** numWorkers;
-
 pub fn part2(ctx: *Context) []u8 {
-    // std.debug.print("{d} {d}\n", .{ tot2, tot3 });
-    var ctxs = [_]Context{undefined} ** numWorkers;
     var tot: i32 = 0;
+    var ctxs = [_]Context{undefined} ** numWorkers;
     ctx.grp.reset();
     for (0..numWorkers) |i| {
         ctxs[i] = Context{
-            .buf = &scratch[i],
+            .buf = ctx.buf,
             .allocator = ctx.allocator,
             .dim = ctx.dim,
             .gp = ctx.gp,
@@ -173,8 +174,6 @@ pub fn part2(ctx: *Context) []u8 {
             .grp = undefined,
             .tot = 0,
         };
-        // uh.
-        @memcpy(ctxs[i].buf[0..ctx.buf.len], ctx.buf);
         ctx.grp.start();
         common.pool.spawn(part2_sub, .{&ctxs[i]}) catch {
             std.debug.panic("failed to spawn worker {d}\n", .{i});
