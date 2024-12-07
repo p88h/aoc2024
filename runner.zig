@@ -26,9 +26,13 @@ pub fn run_day(allocator: Allocator, work: common.Worker) u64 {
     const buf = common.read_file(allocator, filename);
     const lines = common.split_lines(allocator, buf);
     var t = std.time.Timer.start() catch unreachable;
+    var task_arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer task_arena.deinit();
+    var thr_arena = std.heap.ThreadSafeAllocator{ .child_allocator = task_arena.allocator() };
+    const task_allocator = thr_arena.allocator();
     const iter = 100000;
     var ctxs = allocator.alloc(*anyopaque, iter) catch unreachable;
-    for (0..iter) |i| ctxs[i] = work.parse(common.pool_allocator, buf, lines);
+    for (0..iter) |i| ctxs[i] = work.parse(task_allocator, buf, lines);
     const t1 = t.read();
     print_time(t1 / iter);
     t.reset();

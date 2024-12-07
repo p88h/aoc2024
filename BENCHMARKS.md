@@ -7,14 +7,16 @@ Zig: `0.14.0-dev.1911+3bf89f55c`
 ```
 $ zig build -Doptimize=ReleaseFast run -- all
         parse   part1   part2   total
-day 00: 9.0 ns  12.0 ns 12.0 ns 33.0 ns
-day 01: 8.1 µs  17.5 µs 7.5 µs  33.2 µs
-day 02: 10.2 µs 5.6 µs  17.8 µs 33.7 µs
-day 03: 9.0 ns  16.0 µs 13.6 µs 29.7 µs
-day 04: 7.0 ns  53.8 µs 25.6 µs 79.4 µs
-day 05: 12.0 µs 1.1 µs  2.5 µs  15.8 µs
+day 00: 16.0 ns 19.0 ns 18.0 ns 54.0 ns
+day 01: 8.2 µs  21.9 µs 7.2 µs  37.5 µs
+day 02: 11.6 µs 5.6 µs  17.4 µs 34.7 µs
+day 03: 18.0 ns 19.1 µs 16.2 µs 35.3 µs
+day 04: 17.0 ns 53.3 µs 18.7 µs 72.1 µs
+day 05: 13.2 µs 1.5 µs  2.5 µs  17.3 µs
+day 06: 91.0 ns 10.6 µs 10.9 µs 21.7 µs
+day 07: 45.9 µs 75.3 µs 75.9 µs 0.1 ms
 
-all days total:         192.1 µs
+all days total:         416.0 µs
 ```
 
 CPU: Apple M3 Max (12+4 cores)

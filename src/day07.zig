@@ -43,7 +43,7 @@ pub fn parse(allocator: Allocator, _: []u8, lines: [][]const u8) *Context {
         ctx.workers[i].ctx = ctx;
         ctx.workers[i].tid = i;
         ctx.workers[i].stack = std.ArrayList(vec16).init(allocator);
-        ctx.workers[i].stack.ensureTotalCapacity(1000) catch unreachable;
+        ctx.workers[i].stack.ensureTotalCapacityPrecise(16) catch unreachable;
     }
     for (lines, 0..) |line, idx| {
         const sp = std.mem.indexOf(u8, line, ":").?;
