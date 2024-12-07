@@ -28,7 +28,7 @@ pub fn run_day(allocator: Allocator, work: common.Worker) u64 {
     var t = std.time.Timer.start() catch unreachable;
     const iter = 100000;
     var ctxs = allocator.alloc(*anyopaque, iter) catch unreachable;
-    for (0..iter) |i| ctxs[i] = work.parse(allocator, buf, lines);
+    for (0..iter) |i| ctxs[i] = work.parse(common.pool_allocator, buf, lines);
     const t1 = t.read();
     print_time(t1 / iter);
     t.reset();
@@ -52,6 +52,7 @@ pub fn main() !void {
     defer std.process.argsFree(allocator, args);
     var runAll = false;
     var runBench = false;
+    common.ensure_pool(allocator);
 
     for (args) |arg| {
         if (std.mem.eql(u8, arg, "all")) runAll = true;

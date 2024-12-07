@@ -1,6 +1,31 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
+pub var pool: std.Thread.Pool = undefined;
+pub var pool_running = false;
+pub var pool_allocator: Allocator = undefined;
+pub var pool_arena: std.heap.ThreadSafeAllocator = undefined;
+
+pub fn ensure_pool(allocator: Allocator) void {
+    if (!pool_running) {
+        pool_arena = .{
+            .child_allocator = allocator,
+        };
+        pool_allocator = pool_arena.allocator();
+        pool.init(std.Thread.Pool.Options{ .allocator = pool_allocator }) catch {
+            std.debug.panic("failed to init pool\n", .{});
+        };
+        pool_running = true;
+    }
+}
+
+pub fn shutdown_pool() void {
+    if (pool_running) {
+        pool.deinit();
+        pool_running = false;
+    }
+}
+
 pub fn read_file(allocator: Allocator, filename: []const u8) []u8 {
     // potentially common stuff
     var file = std.fs.cwd().openFile(filename, .{}) catch {
@@ -36,7 +61,8 @@ pub fn create_ctx(allocator: Allocator, work: Worker) *anyopaque {
 pub fn run_day(work: Worker) void {
     var aa = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer _ = aa.deinit();
-    const ctx = create_ctx(aa.allocator(), work);
+    ensure_pool(aa.allocator());
+    const ctx = create_ctx(pool_allocator, work);
     std.debug.print("{s}", .{work.part1(ctx)});
     std.debug.print("{s}", .{work.part2(ctx)});
 }

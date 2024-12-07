@@ -3,13 +3,23 @@ const Allocator = std.mem.Allocator;
 const common = @import("common.zig");
 
 pub const vec16 = @Vector(16, u64);
+pub const nWorkers = 5;
 
 pub const Context = struct {
     allocator: Allocator,
     targets: []u64,
     lines: []vec16,
-    stack: std.ArrayList(vec16),
     cache: []bool,
+    concat: bool,
+    workers: [nWorkers]WorkerState,
+    wait_group: std.Thread.WaitGroup,
+};
+
+pub const WorkerState = struct {
+    ctx: *Context,
+    tid: usize,
+    stack: std.ArrayList(vec16),
+    ret: u64,
 };
 
 pub fn parseVec(line: []const u8, sep: comptime_int, T: type, len: comptime_int) @Vector(len, T) {
@@ -29,12 +39,17 @@ pub fn parse(allocator: Allocator, _: []u8, lines: [][]const u8) *Context {
     ctx.allocator = allocator;
     ctx.targets = allocator.alloc(u64, lines.len) catch unreachable;
     ctx.lines = allocator.alloc(vec16, lines.len) catch unreachable;
+    for (0..nWorkers) |i| {
+        ctx.workers[i].ctx = ctx;
+        ctx.workers[i].tid = i;
+        ctx.workers[i].stack = std.ArrayList(vec16).init(allocator);
+        ctx.workers[i].stack.ensureTotalCapacity(1000) catch unreachable;
+    }
     for (lines, 0..) |line, idx| {
         const sp = std.mem.indexOf(u8, line, ":").?;
         ctx.targets[idx] = std.fmt.parseInt(u64, line[0..sp], 10) catch unreachable;
         ctx.lines[idx] = parseVec(line[sp + 2 ..], ' ', u32, 16);
     }
-    ctx.stack = @TypeOf(ctx.stack).init(ctx.allocator);
     ctx.cache = allocator.alloc(bool, lines.len) catch unreachable;
     @memset(ctx.cache, false);
     return ctx;
@@ -61,8 +76,7 @@ pub fn combine(vec: vec16, target: u64) bool {
     return false;
 }
 
-pub fn fold(ctx: *Context, vec: vec16, target: u64, concat: bool) bool {
-    var stack = ctx.stack;
+pub fn fold(stack: *std.ArrayList(vec16), vec: vec16, target: u64, concat: bool) bool {
     stack.clearRetainingCapacity();
     var tv = vec;
     tv[15] = target;
@@ -100,24 +114,42 @@ pub fn fold(ctx: *Context, vec: vec16, target: u64, concat: bool) bool {
     return false;
 }
 
-pub fn part1(ctx: *Context) []u8 {
+pub fn worker(ws: *WorkerState) void {
+    const ctx = ws.ctx;
     var tot: u64 = 0;
     for (ctx.lines, 0..) |line, idx| {
-        if (fold(ctx, line, ctx.targets[idx], false)) {
+        if (idx % nWorkers == ws.tid and (ctx.cache[idx] or fold(&ws.stack, line, ctx.targets[idx], ctx.concat))) {
             tot += ctx.targets[idx];
             ctx.cache[idx] = true;
         }
     }
+    ws.ret = tot;
+    ctx.wait_group.finish();
+}
+
+pub fn run_async(ctx: *Context) u64 {
+    var tot: u64 = 0;
+    ctx.wait_group.reset();
+    for (0..nWorkers) |idx| {
+        ctx.wait_group.start();
+        common.pool.spawn(worker, .{&ctx.workers[idx]}) catch {
+            std.debug.panic("failed to spawn worker {d}\n", .{idx});
+        };
+    }
+    common.pool.waitAndWork(&ctx.wait_group);
+    for (0..nWorkers) |idx| tot += ctx.workers[idx].ret;
+    return tot;
+}
+
+pub fn part1(ctx: *Context) []u8 {
+    ctx.concat = false;
+    const tot = run_async(ctx);
     return std.fmt.allocPrint(ctx.allocator, "{d}\n", .{tot}) catch unreachable;
 }
 
 pub fn part2(ctx: *Context) []u8 {
-    var tot: u64 = 0;
-    for (ctx.lines, 0..) |line, idx| {
-        if (ctx.cache[idx] or fold(ctx, line, ctx.targets[idx], true)) {
-            tot += ctx.targets[idx];
-        }
-    }
+    ctx.concat = true;
+    const tot = run_async(ctx);
     return std.fmt.allocPrint(ctx.allocator, "{d}\n", .{tot}) catch unreachable;
 }
 
