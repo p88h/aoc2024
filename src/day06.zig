@@ -16,12 +16,27 @@ pub const Guard = struct {
         self.x += self.dx;
         self.y += self.dy;
     }
-    pub fn dir(self: *Guard) i32 {
+    pub fn key(self: *const Guard) i32 {
+        const p: i32 = (self.x << 10) + (self.y << 2);
         if (self.dx != 0) {
-            return @divFloor(self.dx + 3, 2); // 1 or 2
+            return p + self.dx + 1; // +0 / + 2
         } else {
-            return (self.dy + 3) * 2; // 4 or 8
+            return p + self.dy + 2; // +1 / + 3
         }
+    }
+    pub fn from(kv: i32) Guard {
+        var dx: i32 = 0;
+        var dy: i32 = 0;
+        switch (kv & 0x3) {
+            0 => dx = -1,
+            1 => dy = -1,
+            2 => dx = 1,
+            3 => dy = 1,
+            else => {},
+        }
+        const ret = Guard{ .x = kv >> 10, .y = (kv >> 2) & 0xFF, .dx = dx, .dy = dy };
+        std.debug.assert(ret.key() == kv);
+        return ret;
     }
 };
 
@@ -71,21 +86,27 @@ pub fn part1(ctx: *Context) []u8 {
         if (ctx.ahead(gp) == 0) break;
         gp.move();
     }
-    return std.fmt.allocPrint(ctx.allocator, "{d}\n", .{tot}) catch unreachable;
+    return std.fmt.allocPrint(ctx.allocator, "{d}", .{tot}) catch unreachable;
 }
 
 pub fn part2(ctx: *Context) []u8 {
     var tot: i32 = 0;
-    var history = std.AutoHashMap(Guard, i32).init(ctx.allocator);
-    var shadow = std.AutoHashMap(Guard, i32).init(ctx.allocator);
+    var history = [_]bool{false} ** (1 << 19);
+    var shadow = [_]i32{-1} ** (1 << 19);
+    var jumps = [_]i32{-1} ** (1 << 19);
+    var prevk: i32 = -1;
     var gp = ctx.gp;
+    var iter: i32 = 0;
     while (true) {
         // this will prevent shadow walls in this position
         ctx.update(gp.x, gp.y, 'X');
+        // only handle history at the corners - this speeds things up a lot
         while (ctx.ahead(gp) == '#') {
-            // only store history at the corners - this speeds things up a lot
-            history.put(gp, 1) catch unreachable;
+            // build the jump accelerator
+            if (prevk >= 0) jumps[@intCast(prevk)] = gp.key();
+            history[@intCast(gp.key())] = true;
             gp.turn();
+            prevk = gp.key();
         }
         if (ctx.ahead(gp) == 0) break;
         // if there is an empty field, we maybe can place an obstacle
@@ -95,14 +116,25 @@ pub fn part2(ctx: *Context) []u8 {
             const gy = gp.y + gp.dy;
             ctx.update(gx, gy, '#');
             var gs = gp;
+            var prevk2: i32 = -1;
             // std.debug.print("ghost walk at {d} from {d},{d} +{d}.{d}\n", .{ history.count(), gs.x, gs.y, gs.dx, gs.dy });
             gs.turn();
-            shadow.clearRetainingCapacity();
+            iter += 1;
             while (ctx.ahead(gs) != 0) {
                 if (ctx.ahead(gs) == '#') {
-                    if (history.contains(gs) or shadow.contains(gs)) break;
-                    shadow.put(gs, 1) catch unreachable;
+                    const gk: usize = @intCast(gs.key());
+                    if (prevk2 >= 0) jumps[@intCast(prevk2)] = gs.key();
+                    if (history[gk] or shadow[gk] == iter) break;
+                    shadow[gk] = iter;
                     gs.turn();
+                    // accelerate jumps except block axii
+                    if (gs.x != gx and gs.y != gy) {
+                        prevk2 = gs.key();
+                        // jump once
+                        if (jumps[@intCast(prevk2)] >= 0) gs = Guard.from(jumps[@intCast(prevk2)]);
+                    } else {
+                        prevk2 = -1;
+                    }
                 } else {
                     gs.move();
                 }
@@ -113,11 +145,13 @@ pub fn part2(ctx: *Context) []u8 {
         }
         gp.move();
     }
-    return std.fmt.allocPrint(ctx.allocator, "{d}\n", .{tot}) catch unreachable;
+    // std.debug.print("{d} {d}\n", .{ tot2, tot3 });
+    return std.fmt.allocPrint(ctx.allocator, "{d}", .{tot}) catch unreachable;
 }
 
 // boilerplate
 pub const work = common.Worker{ .day = "06", .parse = @ptrCast(&parse), .part1 = @ptrCast(&part1), .part2 = @ptrCast(&part2) };
 pub fn main() void {
-    common.run_day(work);
+    for (0..10) |_|
+        common.run_day(work);
 }
