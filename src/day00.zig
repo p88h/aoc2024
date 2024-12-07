@@ -15,11 +15,11 @@ pub fn parse(allocator: Allocator, _: []u8, lines: [][]const u8) *Context {
 }
 
 pub fn part1(ctx: *Context) []u8 {
-    return std.fmt.allocPrint(ctx.allocator, "{d}\n", .{ctx.lines.len}) catch unreachable;
+    return std.fmt.allocPrint(ctx.allocator, "{d}", .{ctx.lines.len}) catch unreachable;
 }
 
 pub fn part2(ctx: *Context) []u8 {
-    return std.fmt.allocPrint(ctx.allocator, "{d}\n", .{ctx.lines[0].len}) catch unreachable;
+    return std.fmt.allocPrint(ctx.allocator, "{d}", .{ctx.lines[0].len}) catch unreachable;
 }
 
 // boilerplate

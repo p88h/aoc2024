@@ -63,6 +63,6 @@ pub fn run_day(work: Worker) void {
     defer _ = aa.deinit();
     ensure_pool(aa.allocator());
     const ctx = create_ctx(pool_allocator, work);
-    std.debug.print("{s}", .{work.part1(ctx)});
-    std.debug.print("{s}", .{work.part2(ctx)});
+    std.debug.print("{s}\n", .{work.part1(ctx)});
+    std.debug.print("{s}\n", .{work.part2(ctx)});
 }

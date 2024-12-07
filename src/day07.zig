@@ -144,13 +144,13 @@ pub fn run_async(ctx: *Context) u64 {
 pub fn part1(ctx: *Context) []u8 {
     ctx.concat = false;
     const tot = run_async(ctx);
-    return std.fmt.allocPrint(ctx.allocator, "{d}\n", .{tot}) catch unreachable;
+    return std.fmt.allocPrint(ctx.allocator, "{d}", .{tot}) catch unreachable;
 }
 
 pub fn part2(ctx: *Context) []u8 {
     ctx.concat = true;
     const tot = run_async(ctx);
-    return std.fmt.allocPrint(ctx.allocator, "{d}\n", .{tot}) catch unreachable;
+    return std.fmt.allocPrint(ctx.allocator, "{d}", .{tot}) catch unreachable;
 }
 
 // boilerplate

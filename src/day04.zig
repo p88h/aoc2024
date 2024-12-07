@@ -8,11 +8,11 @@ pub const Context = struct {
     lines: [][]const u8,
 };
 
-pub fn parse(allocator: Allocator, _: []u8, lines: [][]const u8) *anyopaque {
+pub fn parse(allocator: Allocator, _: []u8, lines: [][]const u8) *Context {
     var ctx = allocator.create(Context) catch unreachable;
     ctx.lines = lines;
     ctx.allocator = allocator;
-    return @ptrCast(ctx);
+    return ctx;
 }
 
 inline fn encode(v0: u8, v1: u8, v2: u8, v3: u8) u32 {
@@ -42,8 +42,7 @@ pub inline fn match_dirs(ctx: *Context, y: usize, x: usize, w: usize, h: usize, 
 pub const pat1 = 'X' + ('M' << 8) + ('A' << 16) + ('S' << 24);
 pub const pat2 = 'S' + ('A' << 8) + ('M' << 16) + ('X' << 24);
 
-pub fn part1(ptr: *anyopaque) []u8 {
-    const ctx: *Context = @alignCast(@ptrCast(ptr));
+pub fn part1(ctx: *Context) []u8 {
     var tot: u32 = 0;
     const width = ctx.lines[0].len;
     const height = ctx.lines.len;
@@ -57,7 +56,7 @@ pub fn part1(ptr: *anyopaque) []u8 {
             tot += ((f1 & 12) >> 2) + (f1 & 3);
         }
     }
-    return std.fmt.allocPrint(ctx.allocator, "{d}\n", .{tot}) catch unreachable;
+    return std.fmt.allocPrint(ctx.allocator, "{d}", .{tot}) catch unreachable;
 }
 
 pub inline fn match_xmas(ctx: *Context, y: usize, x: usize) u32 {
@@ -69,8 +68,7 @@ pub inline fn match_xmas(ctx: *Context, y: usize, x: usize) u32 {
     return 0;
 }
 
-pub fn part2(ptr: *anyopaque) []u8 {
-    const ctx: *Context = @alignCast(@ptrCast(ptr));
+pub fn part2(ctx: *Context) []u8 {
     var tot: u32 = 0;
     const width = ctx.lines[0].len;
     const height = ctx.lines.len;
@@ -79,11 +77,11 @@ pub fn part2(ptr: *anyopaque) []u8 {
             tot += match_xmas(ctx, y, x);
         }
     }
-    return std.fmt.allocPrint(ctx.allocator, "{d}\n", .{tot}) catch unreachable;
+    return std.fmt.allocPrint(ctx.allocator, "{d}", .{tot}) catch unreachable;
 }
 
 // boilerplate
-pub const work = common.Worker{ .day = "04", .parse = parse, .part1 = part1, .part2 = part2 };
+pub const work = common.Worker{ .day = "04", .parse = @ptrCast(&parse), .part1 = @ptrCast(&part1), .part2 = @ptrCast(&part2) };
 pub fn main() void {
     common.run_day(work);
 }

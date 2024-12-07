@@ -17,7 +17,7 @@ pub fn parseVec(line: []const u8, vec: *vec8) usize {
     return p + 1;
 }
 
-pub fn parse(allocator: Allocator, _: []u8, lines: [][]const u8) *anyopaque {
+pub fn parse(allocator: Allocator, _: []u8, lines: [][]const u8) *Context {
     var ctx = allocator.create(Context) catch unreachable;
     ctx.cnt = allocator.alloc(usize, lines.len) catch unreachable;
     ctx.pak = allocator.alloc(vec8, lines.len) catch unreachable;
@@ -27,7 +27,7 @@ pub fn parse(allocator: Allocator, _: []u8, lines: [][]const u8) *anyopaque {
         ctx.pak[i] = @splat(0);
         ctx.cnt[i] = parseVec(line, &ctx.pak[i]);
     }
-    return @ptrCast(ctx);
+    return ctx;
 }
 
 pub fn print_vec(n: []const u8, v: vec8, l: usize) void {
@@ -52,17 +52,15 @@ pub fn valid(v: vec8, l: usize) bool {
     return false;
 }
 
-pub fn part1(ptr: *anyopaque) []u8 {
-    const ctx: *Context = @alignCast(@ptrCast(ptr));
+pub fn part1(ctx: *Context) []u8 {
     var tot: usize = 0;
     for (0..ctx.cnt.len) |i| {
         if (valid(ctx.pak[i], ctx.cnt[i])) tot += 1;
     }
-    return std.fmt.allocPrint(ctx.allocator, "{d}\n", .{tot}) catch unreachable;
+    return std.fmt.allocPrint(ctx.allocator, "{d}", .{tot}) catch unreachable;
 }
 
-pub fn part2(ptr: *anyopaque) []u8 {
-    const ctx: *Context = @alignCast(@ptrCast(ptr));
+pub fn part2(ctx: *Context) []u8 {
     var tot: usize = 0;
     for (0..ctx.cnt.len) |i| {
         const l = ctx.cnt[i] - 1;
@@ -79,11 +77,11 @@ pub fn part2(ptr: *anyopaque) []u8 {
             left = std.simd.shiftElementsRight(left, 1, 255);
         }
     }
-    return std.fmt.allocPrint(ctx.allocator, "{d}\n", .{tot}) catch unreachable;
+    return std.fmt.allocPrint(ctx.allocator, "{d}", .{tot}) catch unreachable;
 }
 
 // boilerplate
-pub const work = common.Worker{ .day = "02", .parse = parse, .part1 = part1, .part2 = part2 };
+pub const work = common.Worker{ .day = "02", .parse = @ptrCast(&parse), .part1 = @ptrCast(&part1), .part2 = @ptrCast(&part2) };
 pub fn main() void {
     common.run_day(work);
 }

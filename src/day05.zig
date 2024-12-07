@@ -19,7 +19,7 @@ pub fn parseVec(line: []const u8, sep: comptime_int, T: type, len: comptime_int,
     return p + 1;
 }
 
-pub fn parse(allocator: Allocator, _: []u8, lines: [][]const u8) *anyopaque {
+pub fn parse(allocator: Allocator, _: []u8, lines: [][]const u8) *Context {
     var ctx = allocator.create(Context) catch unreachable;
     ctx.allocator = allocator;
     var first = true;
@@ -47,11 +47,10 @@ pub fn parse(allocator: Allocator, _: []u8, lines: [][]const u8) *anyopaque {
             ctx.insns.append(cins) catch unreachable;
         }
     }
-    return @ptrCast(ctx);
+    return ctx;
 }
 
-pub fn part1(ptr: *anyopaque) []u8 {
-    const ctx: *Context = @alignCast(@ptrCast(ptr));
+pub fn part1(ctx: *Context) []u8 {
     var tot: u32 = 0;
     for (0..ctx.insns.items.len) |i| {
         const cins = ctx.insns.items[i];
@@ -71,11 +70,10 @@ pub fn part1(ptr: *anyopaque) []u8 {
             tot += @intCast(ctx.insns.items[i][ilen / 2]);
         }
     }
-    return std.fmt.allocPrint(ctx.allocator, "{d}\n", .{tot}) catch unreachable;
+    return std.fmt.allocPrint(ctx.allocator, "{d}", .{tot}) catch unreachable;
 }
 
-pub fn part2(ptr: *anyopaque) []u8 {
-    const ctx: *Context = @alignCast(@ptrCast(ptr));
+pub fn part2(ctx: *Context) []u8 {
     var tot: u32 = 0;
     for (0..ctx.insns.items.len) |i| {
         const cins = ctx.insns.items[i];
@@ -94,11 +92,11 @@ pub fn part2(ptr: *anyopaque) []u8 {
             tot += @intCast(fixs);
         }
     }
-    return std.fmt.allocPrint(ctx.allocator, "{d}\n", .{tot}) catch unreachable;
+    return std.fmt.allocPrint(ctx.allocator, "{d}", .{tot}) catch unreachable;
 }
 
 // boilerplate
-pub const work = common.Worker{ .day = "05", .parse = parse, .part1 = part1, .part2 = part2 };
+pub const work = common.Worker{ .day = "05", .parse = @ptrCast(&parse), .part1 = @ptrCast(&part1), .part2 = @ptrCast(&part2) };
 pub fn main() void {
     common.run_day(work);
 }

@@ -60,15 +60,13 @@ pub fn parse(allocator: Allocator, buf: []u8, _: [][]const u8) *anyopaque {
     return @ptrCast(ctx);
 }
 
-pub fn part1(ptr: *anyopaque) []u8 {
-    const ctx: *Context = @alignCast(@ptrCast(ptr));
+pub fn part1(ctx: *Context) []u8 {
     ctx.tot = 0;
     dfa_sub(ctx, ctx.buf);
-    return std.fmt.allocPrint(ctx.allocator, "{d}\n", .{ctx.tot}) catch unreachable;
+    return std.fmt.allocPrint(ctx.allocator, "{d}", .{ctx.tot}) catch unreachable;
 }
 
-pub fn part2(ptr: *anyopaque) []u8 {
-    const ctx: *Context = @alignCast(@ptrCast(ptr));
+pub fn part2(ctx: *Context) []u8 {
     ctx.tot = 0;
     var start: usize = 0;
     while (start < ctx.buf.len) {
@@ -82,11 +80,11 @@ pub fn part2(ptr: *anyopaque) []u8 {
             break;
         }
     }
-    return std.fmt.allocPrint(ctx.allocator, "{d}\n", .{ctx.tot}) catch unreachable;
+    return std.fmt.allocPrint(ctx.allocator, "{d}", .{ctx.tot}) catch unreachable;
 }
 
 // boilerplate
-pub const work = common.Worker{ .day = "03", .parse = parse, .part1 = part1, .part2 = part2 };
+pub const work = common.Worker{ .day = "03", .parse = @ptrCast(&parse), .part1 = @ptrCast(&part1), .part2 = @ptrCast(&part2) };
 pub fn main() void {
     common.run_day(work);
 }
