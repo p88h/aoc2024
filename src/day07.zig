@@ -9,6 +9,7 @@ pub const Context = struct {
     targets: []u64,
     lines: []vec16,
     stack: std.ArrayList(vec16),
+    cache: []bool,
 };
 
 pub fn parseVec(line: []const u8, sep: comptime_int, T: type, len: comptime_int) @Vector(len, T) {
@@ -34,6 +35,8 @@ pub fn parse(allocator: Allocator, _: []u8, lines: [][]const u8) *Context {
         ctx.lines[idx] = parseVec(line[sp + 2 ..], ' ', u32, 16);
     }
     ctx.stack = @TypeOf(ctx.stack).init(ctx.allocator);
+    ctx.cache = allocator.alloc(bool, lines.len) catch unreachable;
+    @memset(ctx.cache, false);
     return ctx;
 }
 
@@ -102,6 +105,7 @@ pub fn part1(ctx: *Context) []u8 {
     for (ctx.lines, 0..) |line, idx| {
         if (fold(ctx, line, ctx.targets[idx], false)) {
             tot += ctx.targets[idx];
+            ctx.cache[idx] = true;
         }
     }
     return std.fmt.allocPrint(ctx.allocator, "{d}\n", .{tot}) catch unreachable;
@@ -110,7 +114,7 @@ pub fn part1(ctx: *Context) []u8 {
 pub fn part2(ctx: *Context) []u8 {
     var tot: u64 = 0;
     for (ctx.lines, 0..) |line, idx| {
-        if (fold(ctx, line, ctx.targets[idx], true)) {
+        if (ctx.cache[idx] or fold(ctx, line, ctx.targets[idx], true)) {
             tot += ctx.targets[idx];
         }
     }

@@ -25,13 +25,14 @@ Zig: `0.13.0`
 
 ```
         parse   part1   part2   total
-day 00: 7.0 ns  11.0 ns 14.0 ns 33.0 ns
-day 01: 7.6 µs  13.7 µs 6.4 µs  27.7 µs
-day 02: 11.5 µs 1.3 µs  4.6 µs  17.5 µs
-day 03: 8.0 ns  20.5 µs 18.8 µs 39.3 µs
-day 04: 5.0 ns  29.2 µs 10.3 µs 39.6 µs
-day 05: 12.9 µs 2.0 µs  2.9 µs  17.9 µs
-day 06: 0.1 µs  11.3 µs 10.4 µs 22.0 µs
+day 00: 6.0 ns  11.0 ns 14.0 ns 33.0 ns
+day 01: 7.6 µs  13.8 µs 6.6 µs  28.1 µs
+day 02: 11.3 µs 1.3 µs  4.7 µs  17.4 µs
+day 03: 6.0 ns  20.6 µs 18.2 µs 38.8 µs
+day 04: 8.0 ns  28.5 µs 10.5 µs 39.0 µs
+day 05: 13.4 µs 1.8 µs  2.9 µs  18.2 µs
+day 06: 0.1 µs  10.5 µs 10.5 µs 21.1 µs
+day 07: 24.2 µs 0.1 ms  0.1 ms  0.3 ms
 
-all days total:         164.2 µs
+all days total:         497.3 µs
 ```
