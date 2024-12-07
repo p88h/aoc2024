@@ -46,7 +46,7 @@ pub const Context = struct {
     }
 };
 
-pub fn parse(allocator: Allocator, buf: []u8, lines: [][]const u8) *anyopaque {
+pub fn parse(allocator: Allocator, buf: []u8, lines: [][]const u8) *Context {
     var ctx = allocator.create(Context) catch unreachable;
     ctx.buf = buf;
     ctx.dim = lines.len;
@@ -59,8 +59,7 @@ pub fn parse(allocator: Allocator, buf: []u8, lines: [][]const u8) *anyopaque {
     return @ptrCast(ctx);
 }
 
-pub fn part1(ptr: *anyopaque) []u8 {
-    const ctx: *Context = @alignCast(@ptrCast(ptr));
+pub fn part1(ctx: *Context) []u8 {
     var tot: i32 = 0;
     var gp = ctx.gp;
     while (true) {
@@ -75,8 +74,7 @@ pub fn part1(ptr: *anyopaque) []u8 {
     return std.fmt.allocPrint(ctx.allocator, "{d}\n", .{tot}) catch unreachable;
 }
 
-pub fn part2(ptr: *anyopaque) []u8 {
-    const ctx: *Context = @alignCast(@ptrCast(ptr));
+pub fn part2(ctx: *Context) []u8 {
     var tot: i32 = 0;
     var history = std.AutoHashMap(Guard, i32).init(ctx.allocator);
     var shadow = std.AutoHashMap(Guard, i32).init(ctx.allocator);
@@ -119,7 +117,7 @@ pub fn part2(ptr: *anyopaque) []u8 {
 }
 
 // boilerplate
-pub const work = common.Worker{ .day = "06", .parse = parse, .part1 = part1, .part2 = part2 };
+pub const work = common.Worker{ .day = "06", .parse = @ptrCast(&parse), .part1 = @ptrCast(&part1), .part2 = @ptrCast(&part2) };
 pub fn main() void {
     common.run_day(work);
 }
