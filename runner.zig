@@ -69,11 +69,13 @@ pub fn run_day(allocator: Allocator, work: common.Worker) u64 {
             const tmax = times[cnk - ofs][3];
             const delta = 100 * (tmax - tmin) / (tmax + tmin);
             mid = cnk / 2;
-            print_time(times[mid][3]);
+            std.debug.print("\rday {s}:", .{work.day});
+            for (0..4) |i| print_time(times[mid][i]);
             std.debug.print(" (+-{d}%) iter={d}    ", .{ delta, total_iter });
             if (delta <= 1) break;
         } else {
-            print_time(times[cnk][3]);
+            std.debug.print("\rday {s}:", .{work.day});
+            for (0..4) |i| print_time(times[mid][i]);
             std.debug.print(" (...{d}) iter={d}    ", .{ 9 - cnk, total_iter });
         }
         if (chunk_iter < 1000 and times[0][3] * chunk_iter < 10000000) chunk_iter *= 10;
