@@ -84,7 +84,12 @@ pub fn part2(ctx: *Context) []u8 {
 }
 
 // boilerplate
-pub const work = common.Worker{ .day = "03", .parse = @ptrCast(&parse), .part1 = @ptrCast(&part1), .part2 = @ptrCast(&part2) };
+pub const work = common.Worker{
+    .day = "03",
+    .parse = @ptrCast(&parse),
+    .part1 = @ptrCast(&part1),
+    .part2 = @ptrCast(&part2),
+};
 pub fn main() void {
     common.run_day(work);
 }
