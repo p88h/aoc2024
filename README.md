@@ -12,6 +12,10 @@ Hopefully, you should be able to run the solutions code by using
 ```
 # run last day
 $ zig build run
+# run one specific day
+$ zig build run -- 4
+# or alternatively
+$ zig run src/day04.zig
 # run all days
 $ zig build -Doptimize=ReleaseFast run -- all
 ```
@@ -21,7 +25,8 @@ But this is Zig. YMMV.
 Benchmarking
 ============
 
-TBD
+Automatic, as long as you use `zig build run`. The runner always benchmarks the results. 
+To just run one day once without benchmarks, use `zig run` as above.
 
 Visualisations
 ==============
@@ -32,6 +37,8 @@ There are also some visualisations implemented with Raylib. To get this to run y
 # this is only needed once, really
 $ git submodule init 
 # you can also add `-- rec` to have it create a video file. 
+# And similarly to the regular code, you can pass day number after -- to run that dat
+# Note that zig run will not work for visualisations due to raylib dependency.
 $ zig build -Doptimize=ReleaseSafe vis 
 ```
 
