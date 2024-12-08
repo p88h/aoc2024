@@ -12,14 +12,15 @@ const Ball = struct {
     pos: ray.Vector2,
     speed: ray.Vector2,
     radius: f32,
-    cnt: i32,
+    cnt: usize,
     color: ray.Color,
 };
 
 const VisState = struct {
     ctx: *sol.Context,
     balls: std.ArrayList(Ball),
-    marks: [64][64]i32 = [_][64]i32{[_]i32{0} ** 64} ** 64,
+    marks: [64][64]usize,
+    rate: usize,
 };
 
 pub fn init(allocator: Allocator, _: *ASCIIRay) *VisState {
@@ -68,49 +69,51 @@ pub fn init(allocator: Allocator, _: *ASCIIRay) *VisState {
             vis.marks[y][x] = 0;
         }
     }
+    vis.rate = 20;
     return vis;
 }
 
 pub fn step(vis: *VisState, a: *ASCIIRay, idx: usize) bool {
     const ctx = vis.ctx;
-    if (idx > 30 * 60) return true;
-    var siz = idx % 20; // 0..19
-    if (siz < 10) siz = 20 - siz; // 10..20
-    siz = (20 - siz) / 2 + 2;
+    if (idx > 60 * 60) return true;
     var buf = [2]u8{ 0, 0 };
     for (0..ctx.dim) |y| {
         const py: c_int = @intCast(y * 20 + 40);
         for (0..ctx.dim) |x| {
             const px: c_int = @intCast(x * 20 + 460);
-            switch (vis.marks[y][x]) {
-                0 => ray.DrawRectangleLines(px - 8, py - 8, 16, 16, ray.DARKGRAY),
-                1 => ray.DrawRectangle(px - 8, py - 8, 16, 16, ray.BLUE),
-                else => {
-                    ray.DrawRectangle(px - 8, py - 8, 16, 16, ray.DARKBROWN);
-                    ray.DrawRectangleLines(px - 8, py - 8, 16, 16, ray.LIGHTGRAY);
-                },
+            if (vis.marks[y][x] == 0) {
+                ray.DrawRectangleLines(px - 8, py - 8, 16, 16, ray.DARKGRAY);
+            } else if (vis.marks[y][x] < 20) {
+                ray.DrawRectangle(px - 8, py - 8, 16, 16, ray.BLUE);
+                vis.marks[y][x] += 1;
+            } else {
+                ray.DrawRectangle(px - 8, py - 8, 16, 16, ray.DARKBROWN);
+                ray.DrawRectangleLines(px - 8, py - 8, 16, 16, ray.LIGHTGRAY);
             }
-            if (vis.marks[y][x] == 1 and idx % 20 == 0) vis.marks[y][x] = 2;
             if (ctx.lines[y][x] != '.') {
                 buf[0] = ctx.lines[y][x];
                 a.writeat(&buf, px - 4, py - 8, ray.WHITE);
             }
         }
     }
+    if (idx % 60 == 0 and vis.rate > 10) vis.rate -= 2;
     for (0..vis.balls.items.len) |i| {
-        if (i / 2 > idx / 20) break;
+        if (i / 2 > idx / vis.rate) break;
         var ball = &vis.balls.items[i];
         if (ball.pos.x < 0 or ball.pos.x > 1920 or ball.pos.y < 0 or ball.pos.y > 1080) continue;
-        if (ball.pos.x >= 460 and ball.pos.y >= 40 and idx % 20 == 0) {
+        var siz = ball.cnt % 20; // 0..19
+        if (siz < 10) siz = 20 - siz; // 10..20
+        siz = (20 - siz) / 2 + 2;
+        if (ball.pos.x >= 460 and ball.pos.y >= 40 and ball.cnt % 20 == 0) {
             const rx: usize = @intFromFloat(ball.pos.x / 20 - 23);
             const ry: usize = @intFromFloat(ball.pos.y / 20 - 2);
-            ball.cnt += 1;
-            if (rx <= ctx.dim and ry <= ctx.dim) vis.marks[ry][rx] = ball.cnt;
+            if (rx <= ctx.dim and ry <= ctx.dim) vis.marks[ry][rx] = ball.cnt + 1;
         }
         ray.DrawCircleV(ball.pos, @floatFromInt(siz), ball.color);
         ray.DrawCircleLinesV(ball.pos, @floatFromInt(siz), ray.YELLOW);
         ball.pos.x += ball.speed.x;
         ball.pos.y += ball.speed.y;
+        ball.cnt += 1;
     }
     return false;
 }
