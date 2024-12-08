@@ -59,13 +59,13 @@ pub fn part1(ctx: *Context) []u8 {
 }
 
 pub fn part2(ctx: *Context) []u8 {
-    var unique = [_][64]bool{[_]bool{true} ** 64} ** 64;
+    var marks = [_]u64{0} ** 64;
     var tot: usize = 0;
     for (0..80) |i| {
         for (0..ctx.cnt[i]) |j| {
             const x1 = ctx.pos[i][j * 2];
             const y1 = ctx.pos[i][j * 2 + 1];
-            unique[@intCast(y1)][@intCast(x1)] = false;
+            marks[@intCast(y1)] |= @as(u64, 1) << @as(u6, @intCast(x1));
             tot += 1;
         }
     }
@@ -82,16 +82,16 @@ pub fn part2(ctx: *Context) []u8 {
             var x2 = ctx.pos[i][k * 2] - dx;
             var y2 = ctx.pos[i][k * 2 + 1] - dy;
             while (x1 >= 0 and x1 < ctx.dim and y1 >= 0 and y1 < ctx.dim) {
-                if (unique[@intCast(y1)][@intCast(x1)]) {
-                    unique[@intCast(y1)][@intCast(x1)] = false;
+                if (marks[@intCast(y1)] & (@as(u64, 1) << @as(u6, @intCast(x1))) == 0) {
+                    marks[@intCast(y1)] |= (@as(u64, 1) << @as(u6, @intCast(x1)));
                     tot += 1;
                 }
                 x1 += dx;
                 y1 += dy;
             }
             while (x2 >= 0 and x2 < ctx.dim and y2 >= 0 and y2 < ctx.dim) {
-                if (unique[@intCast(y2)][@intCast(x2)]) {
-                    unique[@intCast(y2)][@intCast(x2)] = false;
+                if (marks[@intCast(y2)] & (@as(u64, 1) << @as(u6, @intCast(x2))) == 0) {
+                    marks[@intCast(y2)] |= (@as(u64, 1) << @as(u6, @intCast(x2)));
                     tot += 1;
                 }
                 x2 -= dx;
