@@ -7,13 +7,31 @@ pub const FFPipe = struct {
     pipe: []c_int,
     running: bool,
 
-    pub fn init(allocator: Allocator, width: c_int, height: c_int, fps: c_int) !*FFPipe {
+    pub fn init(allocator: Allocator, width: c_int, height: c_int, fps: c_int, scale: c_int) !*FFPipe {
         var f = try allocator.create(FFPipe);
-        const res_str = try std.fmt.allocPrint(allocator, "{d}x{d}", .{ width, height });
+        const res1_str = try std.fmt.allocPrint(allocator, "{d}x{d}", .{ width * scale, height * scale });
+        const res2_str = try std.fmt.allocPrint(allocator, "{d}x{d}", .{ width, height });
         const fps_str = try std.fmt.allocPrint(allocator, "{d}", .{fps});
         // TODO: name the file based on the day number
         std.fs.cwd().deleteFile("out.mp4") catch {};
-        const args = &[_][]const u8{ "ffmpeg", "-loglevel", "quiet", "-f", "rawvideo", "-pix_fmt", "rgb0", "-s", res_str, "-r", fps_str, "-i", "-", "out.mp4" };
+        const args = &[_][]const u8{
+            "ffmpeg",
+            "-loglevel",
+            "quiet",
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "rgb0",
+            "-s",
+            res1_str,
+            "-r",
+            fps_str,
+            "-i",
+            "-",
+            "-s",
+            res2_str,
+            "out.mp4",
+        };
         f.child = ChildProcess.init(args, allocator);
         f.child.stdin_behavior = .Pipe;
         f.child.stdout_behavior = .Close;

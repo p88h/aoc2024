@@ -16,6 +16,7 @@ pub const Viewer = struct {
     ff: *FFPipe,
 
     pub fn init(allocator: Allocator, w: c_int, h: c_int, fps: c_int, t: []const u8, rec: bool) !*Viewer {
+        // ray.SetConfigFlags(ray.FLAG_MSAA_4X_HINT | ray.FLAG_WINDOW_ALWAYS_RUN | ray.FLAG_WINDOW_HIGHDPI);
         ray.InitWindow(w, h, t.ptr);
         var v = try allocator.create(Viewer);
         v.width = w;
@@ -32,8 +33,9 @@ pub const Viewer = struct {
         var done: bool = false;
         defer ray.CloseWindow();
         ray.SetTargetFPS(self.fps);
+        const scale = ray.GetWindowScaleDPI().x;
         if (self.rec)
-            self.ff = try FFPipe.init(self.allocator, self.width, self.height, self.fps);
+            self.ff = try FFPipe.init(self.allocator, self.width, self.height, self.fps, @intFromFloat(scale));
         while (!ray.WindowShouldClose() and !done) {
             ray.BeginDrawing();
             ray.ClearBackground(ray.BLACK);
