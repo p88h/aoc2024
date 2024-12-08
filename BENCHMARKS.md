@@ -26,5 +26,15 @@ OS: Sonoma 14.7.1
 Zig: `0.13.0`
 
 ```
-TBD
+        parse   part1   part2   total
+day 00: 13.0 ns 15.0 ns 15.0 ns 38.0 ns (+-9%) iter=98110     
+day 01: 7.7 µs  15.6 µs 7.3 µss 28.8 µs (+-1%) iter=29110    
+day 02: 10.9 µs 1.3 µs  4.3 µs  16.9 µs (+-1%) iter=29110    
+day 03: 6.0 nss 21.5 µs 19.7 µs 40.4 µs (+-1%) iter=9110    
+day 04: 6.0 nss 28.3 µs 10.7 µs 39.4 µs (+-3%) iter=98110    
+day 05: 13.9 µs 1.7 µs  2.5 µs  17.9 µs (+-1%) iter=9110    
+day 06: 0.1 µs  11.0 µs 0.2 ms  0.2 ms (+-1%) iter=1510    
+day 07: 23.7 µs 44.5 µs 35.6 µs 0.1 ms (+-1%) iter=1510    
+
+all days total:         548.8 µs
 ```
