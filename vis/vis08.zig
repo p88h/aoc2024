@@ -75,7 +75,7 @@ pub fn init(allocator: Allocator, _: *ASCIIRay) *VisState {
 
 pub fn step(vis: *VisState, a: *ASCIIRay, idx: usize) bool {
     const ctx = vis.ctx;
-    if (idx > 60 * 60) return true;
+    if (idx > 66 * 60) return true;
     var buf = [2]u8{ 0, 0 };
     for (0..ctx.dim) |y| {
         const py: c_int = @intCast(y * 20 + 40);
