@@ -88,47 +88,51 @@ pub fn part1(ctx: *Context) []u8 {
     return std.fmt.allocPrint(ctx.allocator, "{d}", .{tot}) catch unreachable;
 }
 
+pub fn defrag_file(ctx: *Context, last: usize) bool {
+    var space = &ctx.space;
+    var files = &ctx.files;
+    const fsize = files[last][1];
+    var first: usize = fsize;
+    // look for larger spaces too if they are earlier
+    for (fsize..10) |s| {
+        if (ctx.index[s] < ctx.index[first]) first = s;
+    }
+    // id of the target space
+    var dest = ctx.index[first];
+    // can move left -- just compare the indices (space indexes are shifted right)
+    if (dest <= last) {
+        const target = &space[dest];
+        std.debug.assert(files[last][0] > target[0]);
+        // update this file
+        files[last][0] = target[0];
+        std.debug.assert(target[1] >= fsize);
+        // update this space
+        target[0] += fsize;
+        target[1] -= fsize;
+        // maybe insert this space into the index
+        if (dest < ctx.index[target[1]]) ctx.index[target[1]] = dest;
+        // scan the index forward, look for next block of the same size
+        while (dest < ctx.mid and space[dest][1] != first) dest += 1;
+        ctx.index[first] = dest;
+    } else {
+        // not defragged - skip anything this size or larger from now on
+        return false;
+    }
+    return true;
+}
+
 pub fn part2(ctx: *Context) []u8 {
-    var space = ctx.space;
-    var files = ctx.files;
     var tot: u64 = 0;
     var last = ctx.mid;
     var skip: usize = 10;
     while (last > 0) {
         last -= 1;
-        const fsize = files[last][1];
-        if (skip <= fsize) {
-            for (files[last][0]..files[last][0] + fsize) |p| tot += @intCast(last * p);
-            continue;
-        }
-        var first: usize = fsize;
-        // look for larger spaces too if they are earlier
-        for (fsize..10) |s| {
-            if (ctx.index[s] < ctx.index[first]) first = s;
-        }
-        // id of the target space
-        var dest = ctx.index[first];
-        // can move left -- just compare the indices (space indexes are shifted right)
-        if (dest <= last) {
-            const target = &space[dest];
-            std.debug.assert(files[last][0] > target[0]);
-            // update this file
-            files[last][0] = target[0];
-            std.debug.assert(target[1] >= fsize);
-            // update this space
-            target[0] += fsize;
-            target[1] -= fsize;
-            // maybe insert this space into the index
-            if (dest < ctx.index[target[1]]) ctx.index[target[1]] = dest;
-            // scan the index forward, look for next block of the same size
-            while (dest < ctx.mid and space[dest][1] != first) dest += 1;
-            ctx.index[first] = dest;
-        } else {
-            // skip anything this size or larger from now on
+        const fsize = ctx.files[last][1];
+        if (skip > fsize and !defrag_file(ctx, last)) {
             skip = fsize;
         }
         // now compute the checksum for this file
-        for (files[last][0]..files[last][0] + fsize) |p| tot += @intCast(last * p);
+        for (ctx.files[last][0]..ctx.files[last][0] + fsize) |p| tot += @intCast(last * p);
     }
     return std.fmt.allocPrint(ctx.allocator, "{d}", .{tot}) catch unreachable;
 }
