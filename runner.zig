@@ -13,7 +13,11 @@ fn print_time_(t: u64, fmax: comptime_int) void {
         d = d / 1000;
         ui += 1;
     }
-    std.debug.print("\t{d}.{d} {s}", .{ d, r, units[ui] });
+    if (fmax == 99) {
+        std.debug.print("\t{d:2}.{d} {s}", .{ d, r, units[ui] });
+    } else {
+        std.debug.print("\t{d}.{d} {s}", .{ d, r, units[ui] });
+    }
 }
 
 fn print_time(t: u64) void {
