@@ -16,7 +16,7 @@ pub const Viewer = struct {
     ff: *FFPipe,
 
     pub fn init(allocator: Allocator, w: c_int, h: c_int, fps: c_int, t: []const u8, rec: bool) !*Viewer {
-        // ray.SetConfigFlags(ray.FLAG_MSAA_4X_HINT | ray.FLAG_WINDOW_ALWAYS_RUN | ray.FLAG_WINDOW_HIGHDPI);
+        ray.SetConfigFlags(ray.FLAG_MSAA_4X_HINT);
         ray.InitWindow(w, h, t.ptr);
         var v = try allocator.create(Viewer);
         v.width = w;

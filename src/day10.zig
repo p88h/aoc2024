@@ -32,6 +32,7 @@ pub fn parse(allocator: Allocator, _: []u8, lines: [][]const u8) *Context {
     ctx.bits = allocator.alloc(vec256, dim * dim) catch unreachable;
     ctx.cntr = allocator.alloc(u64, dim * dim) catch unreachable;
     ctx.start = @TypeOf(ctx.start).init(allocator);
+    ctx.dim = dim;
     @memset(ctx.bits, @splat(0));
     @memset(ctx.cntr, 0);
     for (0..dim) |y| {
