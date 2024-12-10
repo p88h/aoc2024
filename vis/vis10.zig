@@ -85,18 +85,10 @@ pub fn init(allocator: Allocator, _: *ASCIIRay) *VisState {
     vis.models = @TypeOf(vis.models).init(allocator);
     vis.models.append(ray.LoadModelFromMesh(ray.GenMeshCube(1, 10, 1))) catch unreachable;
     vis.models.append(ray.LoadModelFromMesh(ray.GenMeshSphere(1, 8, 8))) catch unreachable;
-
-    // vis.shader = ray.LoadShader("resources/lighting.vs", "resources/lighting.fs");
-    // vis.lights = lights.setup_lights(
-    //     allocator,
-    //     vis.shader,
-    //     @floatFromInt(vis.ctx.dim),
-    //     @floatFromInt(vis.ctx.dim),
-    //     26,
-    //     vis.models,
-    // ) catch {
-    //     std.debug.panic("Could not set up lights\n", .{});
-    // };
+    vis.shader = lights.setup_shader(0.1);
+    vis.lights = lights.setup_lights(allocator, vis.shader, vis.camera) catch {
+        std.debug.panic("Could not set up lights\n", .{});
+    };
     return vis;
 }
 
@@ -104,17 +96,7 @@ pub fn step(vis: *VisState, a: *ASCIIRay, idx: usize) bool {
     // const ctx = vis.ctx;
     if (idx > 60 * 60) return true;
     ray.BeginMode3D(vis.camera);
-    // ray.SetShaderValue(
-    //     vis.shader,
-    //     vis.shader.locs[ray.SHADER_LOC_VECTOR_VIEW],
-    //     &vis.camera.position,
-    //     ray.SHADER_UNIFORM_VEC3,
-    // );
-    // ray.BeginShaderMode(vis.shader);
-    // const px: f32 = @floatFromInt(idx % vis.ctx.dim);
-    // const pz: f32 = @floatFromInt(idx / vis.ctx.dim);
-    // const py: f32 = @floatFromInt(idx % 5);
-    // ray.DrawModel(vis.models.items[1], ray.Vector3{ .x = px, .y = py, .z = pz }, 1, ray.LIGHTGRAY);
+    ray.BeginShaderMode(vis.shader);
     var elev: u8 = 9;
     var mcnt: usize = 0;
     for (0..vis.ctx.dim) |y| {
@@ -123,7 +105,7 @@ pub fn step(vis: *VisState, a: *ASCIIRay, idx: usize) bool {
             const pos = ray.Vector3{ .x = @floatFromInt(x), .y = 0, .z = @floatFromInt(y) };
             const siz = ray.Vector3{ .x = 1, .y = @as(f32, @floatFromInt(h + 1)) / 4, .z = 1 };
             const col = ray.Color{ .r = h * 28, .g = (9 - h) * 28, .b = 32, .a = 255 };
-            const col2 = ray.Color{ .r = col.r / 2, .g = col.g / 2, .b = col.b * 2, .a = 128 };
+            const col2 = ray.Color{ .r = col.r / 2, .g = col.g / 2, .b = col.b * 4, .a = 128 };
             const p = y * vis.ctx.dim + x;
             const o = vis.ctx.cntr[p];
             if (o > 0 and o <= idx) {
@@ -136,7 +118,7 @@ pub fn step(vis: *VisState, a: *ASCIIRay, idx: usize) bool {
             ray.DrawCubeWiresV(pos, siz, ray.BROWN);
         }
     }
-    // ray.EndShaderMode();
+    ray.EndShaderMode();
     ray.EndMode3D();
     var buf = [_]u8{0} ** 64;
     _ = std.fmt.bufPrintZ(&buf, "Visited: {d} Elevation: {d}", .{ mcnt, elev }) catch unreachable;

@@ -7,6 +7,7 @@ const ray = @cImport({
 
 pub const LightType = enum { LIGHT_DIRECTIONAL, LIGHT_POINT };
 
+// adapted from raylib's rlight.h
 pub const Light = struct {
     enabled: c_int,
     light_type: LightType,
@@ -59,61 +60,59 @@ pub const Light = struct {
     pub fn update(self: *Light, shader: ray.Shader) void {
         // Send to shader light enabled state and type
         ray.SetShaderValue(shader, self.enable_loc, &self.enabled, ray.SHADER_UNIFORM_INT);
-        ray.SetShaderValue(shader, self.type_loc, &self.light_type, ray.SHADER_UNIFORM_INT);
+        const l_type: c_int = @intFromEnum(self.light_type);
+        ray.SetShaderValue(shader, self.type_loc, &l_type, ray.SHADER_UNIFORM_INT);
 
         // Send to shader light target position values
-        ray.SetShaderValue(shader, self.pos_loc, &self.position, ray.SHADER_UNIFORM_VEC3);
+        const position = [3]f32{ self.position.x, self.position.y, self.position.z };
+        ray.SetShaderValue(shader, self.pos_loc, &position, ray.SHADER_UNIFORM_VEC3);
 
         // Send to shader light target position values
-        ray.SetShaderValue(shader, self.target_loc, &self.target, ray.SHADER_UNIFORM_VEC3);
+        const target = [3]f32{ self.target.x, self.target.y, self.target.z };
+        ray.SetShaderValue(shader, self.target_loc, &target, ray.SHADER_UNIFORM_VEC3);
 
         // Send to shader light color values
-        const color = ray.Vector4{
-            .x = @floatFromInt(self.color.r),
-            .y = @floatFromInt(self.color.g),
-            .z = @floatFromInt(self.color.b),
-            .w = @floatFromInt(self.color.a),
+        const color = [4]f32{
+            @as(f32, @floatFromInt(self.color.r)) / 255,
+            @as(f32, @floatFromInt(self.color.g)) / 255,
+            @as(f32, @floatFromInt(self.color.b)) / 255,
+            @as(f32, @floatFromInt(self.color.a)) / 255,
         };
         ray.SetShaderValue(shader, self.color_loc, &color, ray.SHADER_UNIFORM_VEC4);
     }
 };
 
-pub fn setup_lights(allocator: Allocator, shader: ray.Shader, xmax: f32, ymax: f32, zmax: f32, models: std.ArrayList(ray.Model)) !std.ArrayList(*Light) {
-    var list = std.ArrayList(*Light).init(allocator);
+pub fn setup_shader(ambient: f32) ray.Shader {
+    var shader = ray.LoadShader("resources/lighting.vs", "resources/lighting.fs");
     shader.locs[ray.SHADER_LOC_VECTOR_VIEW] = ray.GetShaderLocation(shader, "viewPos");
-    shader.locs[ray.SHADER_LOC_VECTOR_VIEW] = ray.GetShaderLocation(shader, "matModel");
     const ambient_loc = ray.GetShaderLocation(shader, "ambient");
-    const ambient = ray.Vector4{ .x = 0.3, .y = 0.3, .z = 0.3, .w = 1.0 };
-    ray.SetShaderValue(shader, ambient_loc, &ambient, ray.SHADER_UNIFORM_VEC4);
+    const ambient_val = [4]f32{ ambient, ambient, ambient, 1.0 };
+    ray.SetShaderValue(shader, ambient_loc, &ambient_val, ray.SHADER_UNIFORM_VEC4);
+    return shader;
+}
+
+// A basic lighting setup with ambient light + some top-positioned lights
+pub fn setup_lights(allocator: Allocator, shader: ray.Shader, camera: ray.Camera3D) !std.ArrayList(*Light) {
+    var list = std.ArrayList(*Light).init(allocator);
+    // downwards liight above camera target
     try list.append(try Light.create(
         allocator,
         0,
         LightType.LIGHT_POINT,
-        ray.Vector3{ .x = -xmax, .y = ymax + 10, .z = zmax },
-        ray.Vector3{},
+        ray.Vector3{ .x = camera.target.x, .y = camera.position.y, .z = camera.target.z },
+        ray.Vector3{ .x = camera.target.x, .y = 0, .z = camera.target.z },
         ray.WHITE,
         shader,
     ));
+    // fill light above camera, also on target
     try list.append(try Light.create(
         allocator,
         1,
         LightType.LIGHT_POINT,
-        ray.Vector3{ .x = xmax / 2, .y = 20, .z = zmax / 2 },
-        ray.Vector3{ .x = xmax / 2, .y = 0, .z = zmax / 2 },
+        ray.Vector3{ .x = camera.position.x, .y = camera.position.y + 2, .z = camera.position.z },
+        ray.Vector3{ .x = camera.target.x, .y = 1, .z = camera.target.z },
         ray.WHITE,
         shader,
     ));
-    try list.append(try Light.create(
-        allocator,
-        2,
-        LightType.LIGHT_POINT,
-        ray.Vector3{ .x = xmax / 2, .y = -20, .z = zmax / 2 },
-        ray.Vector3{ .x = xmax / 2, .y = 0, .z = zmax / 2 },
-        ray.WHITE,
-        shader,
-    ));
-    for (models.items) |model| {
-        model.materials[0].shader = shader;
-    }
     return list;
 }
