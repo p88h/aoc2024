@@ -28,7 +28,7 @@ fn cmpByLast(ctx: void, a: @Vector(4, u64), b: @Vector(4, u64)) bool {
     return std.sort.asc(u64)(ctx, a[3], b[3]);
 }
 
-pub fn run_day(allocator: Allocator, work: common.Worker) u64 {
+pub fn run_day(allocator: Allocator, work: common.Worker, single: bool) u64 {
     const filename = std.fmt.allocPrint(allocator, "input/day{s}.txt", .{work.day}) catch unreachable;
     const buf = common.read_file(allocator, filename);
     const max_chunks = 100;
@@ -83,7 +83,8 @@ pub fn run_day(allocator: Allocator, work: common.Worker) u64 {
             std.debug.print(" (...{d}) iter={d}    ", .{ 9 - cnk, total_iter });
         }
         if (chunk_iter < 1000 and times[0][3] * chunk_iter < 10000000) chunk_iter *= 10;
-        std.debug.print("    p1:[{s}] p2:[{s}]      ", .{ a1, a2 });
+        if (single)
+            std.debug.print("    p1:[{s}] p2:[{s}]      ", .{ a1, a2 });
     }
     std.debug.print("\n", .{});
     return times[mid][3];
@@ -112,11 +113,11 @@ pub fn main() !void {
     std.debug.print("\tparse\tpart1\tpart2\ttotal\n", .{});
     if (runAll) {
         var all: u64 = 0;
-        for (days.all) |work| all += run_day(allocator, work);
+        for (days.all) |work| all += run_day(allocator, work, false);
         std.debug.print("\nall days total: ", .{});
         print_time_(all, 999);
         std.debug.print("\n", .{});
     } else {
-        _ = run_day(allocator, days.all[day]);
+        _ = run_day(allocator, days.all[day], true);
     }
 }
