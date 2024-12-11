@@ -10,46 +10,31 @@ pub const Key = struct {
 pub const Context = struct {
     allocator: Allocator,
     numbers: std.ArrayList(u64),
-    counts: std.ArrayList(u64),
+    count: usize,
     umap: []u64,
     uval: []u64,
+    preh: []@Vector(2, u32),
     blink: usize,
+    uidx: usize,
     wait_group: std.Thread.WaitGroup,
 };
 
 const hsize = 8000;
 const hmod = 7993;
+const tsize = 4000;
 
 pub inline fn unique_key(ctx: *Context, key: u64, ofs: comptime_int) u64 {
-    const hk = (key * 17 + ofs * 11) % hmod;
+    const hk = ((key * 17 + ofs * 11) % hmod) + 1;
     if (ctx.umap[hk] == key + 1) return hk;
-    if (@cmpxchgStrong(u64, &ctx.umap[hk], 0, key + 1, .seq_cst, .seq_cst) == null) {
+    // if (@cmpxchgStrong(u64, &ctx.umap[hk], 0, key + 1, .seq_cst, .seq_cst) == null) {
+    if (ctx.umap[hk] == 0) {
+        ctx.umap[hk] = key + 1;
+        ctx.uidx += 1;
         return hk;
     }
     if (ofs < 16) return unique_key(ctx, key, ofs + 1);
     std.debug.print("conflict limit reached for {d}\n", .{key});
     return 0;
-}
-
-pub fn parse(allocator: Allocator, buf: []u8, _: [][]const u8) *Context {
-    var ctx = allocator.create(Context) catch unreachable;
-    ctx.allocator = allocator;
-    ctx.numbers = std.ArrayList(u64).init(allocator);
-    ctx.counts = std.ArrayList(u64).init(allocator);
-
-    ctx.umap = allocator.alloc(u64, hsize) catch unreachable;
-    @memset(ctx.umap, 0);
-    ctx.uval = allocator.alloc(u64, hsize * 76) catch unreachable;
-    @memset(ctx.uval, 0);
-
-    var iter = std.mem.splitAny(u8, buf, " ");
-    while (iter.next()) |num| {
-        const n = std.fmt.parseInt(u64, num, 10) catch unreachable;
-        ctx.numbers.append(n) catch unreachable;
-        ctx.counts.append(1) catch unreachable;
-    }
-    ctx.blink = 1;
-    return ctx;
 }
 
 const vec2 = @Vector(2, u64);
@@ -67,58 +52,91 @@ pub fn expand(num: u64) vec2 {
     return vec2{ num * 2024, 0 };
 }
 
+pub fn parse(allocator: Allocator, buf: []u8, _: [][]const u8) *Context {
+    var ctx = allocator.create(Context) catch unreachable;
+    ctx.allocator = allocator;
+    ctx.numbers = std.ArrayList(u64).init(allocator);
+    ctx.numbers.ensureTotalCapacity(tsize) catch unreachable;
+    ctx.uidx = 0;
+
+    ctx.umap = allocator.alloc(u64, hsize) catch unreachable;
+    @memset(ctx.umap, 0);
+    ctx.uval = allocator.alloc(u64, tsize * 76) catch unreachable;
+    ctx.preh = allocator.alloc(@Vector(2, u32), hsize) catch unreachable;
+    @memset(ctx.preh, @splat(0));
+
+    var iter = std.mem.splitAny(u8, buf, " ");
+    while (iter.next()) |num| {
+        const n = std.fmt.parseInt(u64, num, 10) catch unreachable;
+        const hk = unique_key(ctx, n, 0);
+        ctx.numbers.append(n) catch unreachable;
+        // in phase 1 we will remap the numbers to small consecutive indexes
+        ctx.uval[hk] = ctx.uidx;
+        std.debug.assert(ctx.numbers.items.len == ctx.uidx);
+    }
+    var pos: usize = 0;
+    ctx.count = ctx.numbers.items.len;
+
+    // precompute all possible numbers and their keying
+    while (pos < ctx.numbers.items.len) {
+        const n = ctx.numbers.items[pos];
+        const hk = unique_key(ctx, n, 0);
+        const hi = ctx.uval[hk];
+        const v = expand(n);
+        inline for (0..2) |i| {
+            if (i == 0 or v[i] > 0) {
+                const ck = unique_key(ctx, v[i], 0);
+                // this was a new number, add it to the list
+                if (ctx.uidx > ctx.numbers.items.len) {
+                    ctx.numbers.append(v[i]) catch unreachable;
+                    ctx.uval[ck] = ctx.uidx;
+                }
+                ctx.preh[hi][i] = @intCast(ctx.uval[ck]);
+            } else ctx.preh[hi][i] = tsize - 1;
+        }
+        pos += 1;
+    }
+    ctx.blink = 1;
+    // the most expensive part
+    @memset(ctx.uval, 0);
+    for (0..ctx.count) |i| ctx.uval[i + 1] = 1;
+    // std.debug.print("{d} unique numbers\n", .{ctx.uidx});
+    return ctx;
+}
+
 pub fn iterate(ctx: *Context, lim: usize) u64 {
     var tot: u64 = 0;
+    var cuv: []u64 = undefined;
+    var nuv: []u64 = undefined;
+    nuv.len = tsize;
+    cuv.len = tsize;
     while (ctx.blink <= lim) {
-        for (ctx.numbers.items, ctx.counts.items) |n, c| {
-            const v = expand(n);
-            inline for (0..2) |i| {
-                if (i == 0 or v[i] > 0) {
-                    const hk = unique_key(ctx, v[i], 0);
-                    ctx.uval[hk] += c;
-                }
-            }
+        const ofs = (ctx.blink - 1) * tsize;
+        cuv.ptr = ctx.uval.ptr + ofs;
+        nuv.ptr = ctx.uval.ptr + ofs + tsize;
+        for (1..ctx.uidx + 1) |n| {
+            tot += cuv[n];
+            if (cuv[n] == 0) continue;
+            nuv[ctx.preh[n][0]] += cuv[n];
+            nuv[ctx.preh[n][1]] += cuv[n];
         }
         ctx.blink += 1;
-        // clear the previous phase
-        ctx.numbers.clearRetainingCapacity();
-        ctx.counts.clearRetainingCapacity();
-        // var iter = ctx.unique.iterator();
         tot = 0;
-        for (0..hmod) |i| {
-            tot += ctx.uval[i];
-            if (ctx.umap[i] > 0 and ctx.uval[i] > 0) {
-                ctx.numbers.append(ctx.umap[i] - 1) catch unreachable;
-                ctx.counts.append(ctx.uval[i]) catch unreachable;
-                ctx.uval[i] = 0;
-            }
-        }
-        // std.debug.print("{d} : {d} : {d}\n", .{ ctx.numbers.items.len, ctx.unique.count(), tot });
     }
+    tot = 0;
+    for (1..ctx.uidx + 1) |n| tot += nuv[n];
     return tot;
 }
 
 pub fn count(ctx: *Context, k: Key) u64 {
     if (k.iter == 0) return 1;
-    const hk = k.iter * hsize + unique_key(ctx, k.num, 0);
-    if (ctx.uval[hk] > 0) return ctx.uval[hk];
-    if (k.num == 0) return count(ctx, Key{ .num = 1, .iter = k.iter - 1 });
-    var base: u64 = 1;
-    while (base < 10000000000) {
-        base *= 10;
-        const bl = base * base / 10;
-        const bh = base * base;
-        if (k.num < bl) break;
-        if (k.num >= bl and k.num < bh) {
-            const l = k.num % base;
-            const h = k.num / base;
-            const ret = count(ctx, Key{ .num = l, .iter = k.iter - 1 }) + count(ctx, Key{ .num = h, .iter = k.iter - 1 });
-            ctx.uval[hk] = ret;
-            return ret;
-        }
-    }
-    const ret = count(ctx, Key{ .num = k.num * 2024, .iter = k.iter - 1 });
-    ctx.uval[hk] = ret;
+    const vk = k.iter * tsize + k.num;
+    if (ctx.uval[vk] > 0) return ctx.uval[vk];
+    const pre1 = ctx.preh[k.num][0];
+    var ret = count(ctx, Key{ .num = pre1, .iter = k.iter - 1 });
+    const pre2 = ctx.preh[k.num][1];
+    if (pre2 < tsize - 1) ret += count(ctx, Key{ .num = pre2, .iter = k.iter - 1 });
+    ctx.uval[vk] = ret;
     return ret;
 }
 
@@ -129,22 +147,22 @@ pub fn count2(ctx: *Context, k: Key, acc: *std.atomic.Value(u64)) void {
 }
 
 pub fn part1(ctx: *Context) []u8 {
-    var tot: u64 = 0;
-    // const tot = iterate(ctx, 25);
-    for (ctx.numbers.items) |num| tot += count(ctx, Key{ .num = num, .iter = 25 });
+    const tot = iterate(ctx, 25);
+    // var tot: u64 = 0;
+    // for (0..ctx.count) |num| tot += count(ctx, Key{ .num = num + 1, .iter = 25 });
     return std.fmt.allocPrint(ctx.allocator, "{d}", .{tot}) catch unreachable;
 }
 
 pub fn part2(ctx: *Context) []u8 {
-    var tot = std.atomic.Value(u64).init(0);
-    ctx.wait_group.reset();
-    for (ctx.numbers.items) |num| {
-        ctx.wait_group.start();
-        common.pool.spawn(count2, .{ ctx, Key{ .num = num, .iter = 75 }, &tot }) catch unreachable;
-    }
-    common.pool.waitAndWork(&ctx.wait_group);
-    // const tot = iterate(ctx, 75);
-    return std.fmt.allocPrint(ctx.allocator, "{d}", .{tot.raw}) catch unreachable;
+    // var tot = std.atomic.Value(u64).init(0);
+    // ctx.wait_group.reset();
+    // for (1..ctx.count + 1) |num| {
+    //     ctx.wait_group.start();
+    //     common.pool.spawn(count2, .{ ctx, Key{ .num = num, .iter = 75 }, &tot }) catch unreachable;
+    // }
+    // common.pool.waitAndWork(&ctx.wait_group);
+    const tot = iterate(ctx, 75);
+    return std.fmt.allocPrint(ctx.allocator, "{d}", .{tot}) catch unreachable;
 }
 
 // boilerplate
