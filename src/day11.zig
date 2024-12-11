@@ -10,13 +10,12 @@ pub const Key = struct {
 pub const Context = struct {
     allocator: Allocator,
     numbers: std.ArrayList(u64),
-    cache: std.AutoHashMap(Key, u64),
     tst: []u64,
     val: []u64,
     wait_group: std.Thread.WaitGroup,
 };
 
-pub inline fn cuckoo(ctx: *Context, key: u64, ofs: usize) u64 {
+pub inline fn cuckoo(ctx: *Context, key: u64, ofs: comptime_int) u64 {
     const mod1 = 999979;
     const mod2 = 988877;
     const hk1 = (key + ofs) % mod1;
@@ -34,20 +33,21 @@ pub inline fn cuckoo(ctx: *Context, key: u64, ofs: usize) u64 {
         return hk2 + 1;
     }
     // in practice, we could handle conflicts better, but we can also just kill it early for some performance bonus
+    // Also, this is likely less likely to cause multi-threading issues
+    // if (ofs < 3) return cuckoo(ctx, key, ofs + 1);
     return 0;
-    // return cuckoo(ctx, key, ofs + 1);
 }
 
-// Initialize cache in parallel
-pub fn alloc_clear_tst(ctx: *Context) void {
-    ctx.tst = ctx.allocator.alloc(u64, 1000000) catch unreachable;
-    @memset(ctx.tst, 0);
-    ctx.wait_group.finish();
-}
-
-pub fn alloc_clear_val(ctx: *Context) void {
-    ctx.val = ctx.allocator.alloc(u64, 1000000) catch unreachable;
-    @memset(ctx.val, 0);
+// this seems slightly more efficient than @memset ?
+pub inline fn fast_clear_slice(ctx: *Context, sl: *[]u64, ofs: comptime_int, size: comptime_int) void {
+    var vecs: []@Vector(4, u64) = undefined;
+    vecs.ptr = @ptrCast(@alignCast(sl.ptr));
+    vecs.len = sl.len / 4;
+    const v_size: comptime_int = size / 4;
+    const l_size: comptime_int = v_size / 16;
+    for (0..l_size) |i| {
+        inline for (0..16) |j| vecs[ofs / 4 + i * 16 + j] = @splat(0);
+    }
     ctx.wait_group.finish();
 }
 
@@ -55,12 +55,17 @@ pub fn parse(allocator: Allocator, buf: []u8, _: [][]const u8) *Context {
     var ctx = allocator.create(Context) catch unreachable;
     ctx.allocator = allocator;
     ctx.numbers = std.ArrayList(u64).init(allocator);
-    ctx.cache = @TypeOf(ctx.cache).init(allocator);
+    ctx.tst = allocator.alignedAlloc(u64, @alignOf(@Vector(4, u64)), 1000000) catch unreachable;
+    ctx.val = allocator.alignedAlloc(u64, @alignOf(@Vector(4, u64)), 1000000) catch unreachable;
     ctx.wait_group.reset();
     ctx.wait_group.start();
-    common.pool.spawn(alloc_clear_tst, .{ctx}) catch unreachable;
+    common.pool.spawn(fast_clear_slice, .{ ctx, &ctx.tst, 0, 500000 }) catch unreachable;
     ctx.wait_group.start();
-    common.pool.spawn(alloc_clear_val, .{ctx}) catch unreachable;
+    common.pool.spawn(fast_clear_slice, .{ ctx, &ctx.tst, 500000, 500000 }) catch unreachable;
+    ctx.wait_group.start();
+    common.pool.spawn(fast_clear_slice, .{ ctx, &ctx.val, 0, 500000 }) catch unreachable;
+    ctx.wait_group.start();
+    fast_clear_slice(ctx, &ctx.val, 500000, 500000);
     var iter = std.mem.splitAny(u8, buf, " ");
     while (iter.next()) |num| {
         const n = std.fmt.parseInt(u64, num, 10) catch unreachable;
