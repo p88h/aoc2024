@@ -10,77 +10,98 @@ pub const Key = struct {
 pub const Context = struct {
     allocator: Allocator,
     numbers: std.ArrayList(u64),
-    tst: []u64,
-    val: []u64,
+    counts: std.ArrayList(u64),
+    umap: []u64,
+    uval: []u64,
+    blink: usize,
     wait_group: std.Thread.WaitGroup,
 };
 
-pub inline fn cuckoo(ctx: *Context, key: u64, ofs: comptime_int) u64 {
-    const mod1 = 999979;
-    const mod2 = 988877;
-    const hk1 = (key + ofs) % mod1;
-    const hk2 = (key + ofs) % mod2;
-    if (ctx.tst[hk1] == key) return hk1 + 1;
-    if (ctx.tst[hk1] == 0) {
-        ctx.tst[hk1] = key;
-        // ctx.val[hk1 + 1] = 0;
-        return hk1 + 1;
-    }
-    if (ctx.tst[hk2] == key) return hk2 + 1;
-    if (ctx.tst[hk2] == 0) {
-        ctx.tst[hk2] = key;
-        // ctx.val[hk2 + 1] = 0;
-        return hk2 + 1;
-    }
-    // in practice, we could handle conflicts better, but we can also just kill it early for some performance bonus
-    // Also, this is likely less likely to cause multi-threading issues
-    // if (ofs < 3) return cuckoo(ctx, key, ofs + 1);
-    return 0;
-}
+const hsize = 8000;
+const hmod = 7993;
 
-// this seems slightly more efficient than @memset ?
-pub inline fn fast_clear_slice(ctx: *Context, sl: *[]u64, ofs: comptime_int, size: comptime_int) void {
-    var vecs: []@Vector(4, u64) = undefined;
-    vecs.ptr = @ptrCast(@alignCast(sl.ptr));
-    vecs.len = sl.len / 4;
-    const v_size: comptime_int = size / 4;
-    const l_size: comptime_int = v_size / 16;
-    for (0..l_size) |i| {
-        inline for (0..16) |j| vecs[ofs / 4 + i * 16 + j] = @splat(0);
+pub inline fn unique_key(ctx: *Context, key: u64, ofs: comptime_int) u64 {
+    const hk = (key * 17 + ofs * 11) % hmod;
+    if (ctx.umap[hk] == key + 1) return hk;
+    if (@cmpxchgStrong(u64, &ctx.umap[hk], 0, key + 1, .seq_cst, .seq_cst) == null) {
+        return hk;
     }
-    ctx.wait_group.finish();
+    if (ofs < 16) return unique_key(ctx, key, ofs + 1);
+    std.debug.print("conflict limit reached for {d}\n", .{key});
+    return 0;
 }
 
 pub fn parse(allocator: Allocator, buf: []u8, _: [][]const u8) *Context {
     var ctx = allocator.create(Context) catch unreachable;
     ctx.allocator = allocator;
     ctx.numbers = std.ArrayList(u64).init(allocator);
-    ctx.tst = allocator.alignedAlloc(u64, @alignOf(@Vector(4, u64)), 1000000) catch unreachable;
-    ctx.val = allocator.alignedAlloc(u64, @alignOf(@Vector(4, u64)), 1000000) catch unreachable;
-    ctx.wait_group.reset();
-    ctx.wait_group.start();
-    common.pool.spawn(fast_clear_slice, .{ ctx, &ctx.tst, 0, 500000 }) catch unreachable;
-    ctx.wait_group.start();
-    common.pool.spawn(fast_clear_slice, .{ ctx, &ctx.tst, 500000, 500000 }) catch unreachable;
-    ctx.wait_group.start();
-    common.pool.spawn(fast_clear_slice, .{ ctx, &ctx.val, 0, 500000 }) catch unreachable;
-    ctx.wait_group.start();
-    fast_clear_slice(ctx, &ctx.val, 500000, 500000);
+    ctx.counts = std.ArrayList(u64).init(allocator);
+
+    ctx.umap = allocator.alloc(u64, hsize) catch unreachable;
+    @memset(ctx.umap, 0);
+    ctx.uval = allocator.alloc(u64, hsize * 76) catch unreachable;
+    @memset(ctx.uval, 0);
+
     var iter = std.mem.splitAny(u8, buf, " ");
     while (iter.next()) |num| {
         const n = std.fmt.parseInt(u64, num, 10) catch unreachable;
         ctx.numbers.append(n) catch unreachable;
+        ctx.counts.append(1) catch unreachable;
     }
-    common.pool.waitAndWork(&ctx.wait_group);
+    ctx.blink = 1;
     return ctx;
+}
+
+const vec2 = @Vector(2, u64);
+
+pub fn expand(num: u64) vec2 {
+    if (num == 0) return vec2{ 1, 0 };
+    var base: u64 = 1;
+    while (base < 10000000000) {
+        base *= 10;
+        const bl = base * base / 10;
+        const bh = base * base;
+        if (num < bl) break;
+        if (num >= bl and num < bh) return vec2{ num % base, num / base };
+    }
+    return vec2{ num * 2024, 0 };
+}
+
+pub fn iterate(ctx: *Context, lim: usize) u64 {
+    var tot: u64 = 0;
+    while (ctx.blink <= lim) {
+        for (ctx.numbers.items, ctx.counts.items) |n, c| {
+            const v = expand(n);
+            inline for (0..2) |i| {
+                if (i == 0 or v[i] > 0) {
+                    const hk = unique_key(ctx, v[i], 0);
+                    ctx.uval[hk] += c;
+                }
+            }
+        }
+        ctx.blink += 1;
+        // clear the previous phase
+        ctx.numbers.clearRetainingCapacity();
+        ctx.counts.clearRetainingCapacity();
+        // var iter = ctx.unique.iterator();
+        tot = 0;
+        for (0..hmod) |i| {
+            tot += ctx.uval[i];
+            if (ctx.umap[i] > 0 and ctx.uval[i] > 0) {
+                ctx.numbers.append(ctx.umap[i] - 1) catch unreachable;
+                ctx.counts.append(ctx.uval[i]) catch unreachable;
+                ctx.uval[i] = 0;
+            }
+        }
+        // std.debug.print("{d} : {d} : {d}\n", .{ ctx.numbers.items.len, ctx.unique.count(), tot });
+    }
+    return tot;
 }
 
 pub fn count(ctx: *Context, k: Key) u64 {
     if (k.iter == 0) return 1;
-    const ck = k.num * 100 + k.iter;
-    const hk = cuckoo(ctx, ck, 0);
-    // if (ctx.cache.contains(k)) return ctx.cache.get(k).?;
-    if (hk > 0 and ctx.val[hk] > 0) return ctx.val[hk];
+    const hk = k.iter * hsize + unique_key(ctx, k.num, 0);
+    if (ctx.uval[hk] > 0) return ctx.uval[hk];
     if (k.num == 0) return count(ctx, Key{ .num = 1, .iter = k.iter - 1 });
     var base: u64 = 1;
     while (base < 10000000000) {
@@ -92,15 +113,12 @@ pub fn count(ctx: *Context, k: Key) u64 {
             const l = k.num % base;
             const h = k.num / base;
             const ret = count(ctx, Key{ .num = l, .iter = k.iter - 1 }) + count(ctx, Key{ .num = h, .iter = k.iter - 1 });
-            // ctx.cache.put(k, ret) catch unreachable;
-            if (hk > 0) ctx.val[hk] = ret;
+            ctx.uval[hk] = ret;
             return ret;
         }
     }
-    // std.debug.print("mul {d}\n", .{x});
     const ret = count(ctx, Key{ .num = k.num * 2024, .iter = k.iter - 1 });
-    // ctx.cache.put(k, ret) catch unreachable;
-    if (hk > 0) ctx.val[hk] = ret;
+    ctx.uval[hk] = ret;
     return ret;
 }
 
@@ -112,19 +130,20 @@ pub fn count2(ctx: *Context, k: Key, acc: *std.atomic.Value(u64)) void {
 
 pub fn part1(ctx: *Context) []u8 {
     var tot: u64 = 0;
+    // const tot = iterate(ctx, 25);
     for (ctx.numbers.items) |num| tot += count(ctx, Key{ .num = num, .iter = 25 });
     return std.fmt.allocPrint(ctx.allocator, "{d}", .{tot}) catch unreachable;
 }
 
 pub fn part2(ctx: *Context) []u8 {
     var tot = std.atomic.Value(u64).init(0);
-    // ctx.cache.ensureTotalCapacity(500000) catch unreachable;
     ctx.wait_group.reset();
     for (ctx.numbers.items) |num| {
         ctx.wait_group.start();
         common.pool.spawn(count2, .{ ctx, Key{ .num = num, .iter = 75 }, &tot }) catch unreachable;
     }
     common.pool.waitAndWork(&ctx.wait_group);
+    // const tot = iterate(ctx, 75);
     return std.fmt.allocPrint(ctx.allocator, "{d}", .{tot.raw}) catch unreachable;
 }
 
