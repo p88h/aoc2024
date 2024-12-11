@@ -1,4 +1,5 @@
 const std = @import("std");
+const common = @import("src").common;
 const Allocator = std.mem.Allocator;
 const ASCIIRay = @import("asciiray.zig").ASCIIRay;
 
@@ -18,7 +19,9 @@ pub const handler = struct {
         // real init at runtime. Use arena allocator for all context stuff.
         var gpa = std.heap.ArenaAllocator.init(std.heap.page_allocator);
         defer _ = gpa.deinit();
-        const allocator = gpa.allocator();
+        var arena = std.heap.ThreadSafeAllocator{ .child_allocator = gpa.allocator() };
+        const allocator = arena.allocator();
+        common.ensure_pool(allocator);
         const win = self.window;
         ctx.a = try ASCIIRay.init(allocator, win.width, win.height, win.fps, rec, win.fsize);
         ctx.h = self;

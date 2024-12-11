@@ -50,8 +50,13 @@ pub const ASCIIRay = struct {
     }
 
     pub fn writeEx(self: *ASCIIRay, msg: []const u8, color: ray.Color) void {
+        const msg_width = @as(f32, @floatFromInt(msg.len)) * (self.fsize / 2);
+        if (self.cx + msg_width > @as(f32, @floatFromInt(self.v.width))) {
+            self.cx = 0;
+            self.cy += self.fsize;
+        }
         ray.DrawTextEx(self.font, msg.ptr, .{ .x = self.cx, .y = self.cy }, self.fsize, 1, color);
-        self.cx += @as(f32, @floatFromInt(msg.len)) * (self.fsize / 2);
+        self.cx += msg_width;
     }
 
     pub fn write(self: *ASCIIRay, msg: []const u8) void {
@@ -80,5 +85,10 @@ pub const ASCIIRay = struct {
 
     pub fn loop(self: *ASCIIRay, render: *const fn (idx: usize) bool) !void {
         try self.v.loop(render);
+    }
+
+    pub fn home(self: *ASCIIRay) void {
+        self.cx = 0;
+        self.cy = 0;
     }
 };

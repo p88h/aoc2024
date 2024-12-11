@@ -83,7 +83,7 @@ pub fn run_day(allocator: Allocator, work: common.Worker) u64 {
             std.debug.print(" (...{d}) iter={d}    ", .{ 9 - cnk, total_iter });
         }
         if (chunk_iter < 1000 and times[0][3] * chunk_iter < 10000000) chunk_iter *= 10;
-        //std.debug.print("    p1:[{s}] p2:[{s}]      ", .{ a1, a2 });
+        std.debug.print("    p1:[{s}] p2:[{s}]      ", .{ a1, a2 });
     }
     std.debug.print("\n", .{});
     return times[mid][3];
