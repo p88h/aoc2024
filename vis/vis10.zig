@@ -4,9 +4,7 @@ const common = @import("src").common;
 const ASCIIRay = @import("asciiray.zig").ASCIIRay;
 const Allocator = std.mem.Allocator;
 const lights = @import("lights.zig");
-const ray = @cImport({
-    @cInclude("raylib.h");
-});
+const ray = @import("ray.zig").ray;
 const sol = @import("src").day10;
 
 const VisState = struct {

@@ -3,9 +3,7 @@ const handler = @import("handler.zig").handler;
 const common = @import("src").common;
 const ASCIIRay = @import("asciiray.zig").ASCIIRay;
 const Allocator = std.mem.Allocator;
-const ray = @cImport({
-    @cInclude("raylib.h");
-});
+const ray = @import("ray.zig").ray;
 const sol = @import("src").day09;
 
 const VisState = struct { ctx: *sol.Context, prev: usize, cluster: usize, done: usize, speed: usize, size: usize };

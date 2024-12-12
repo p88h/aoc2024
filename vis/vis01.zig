@@ -4,9 +4,7 @@ const day01 = @import("src").day01;
 const handler = @import("handler.zig").handler;
 const ASCIIRay = @import("asciiray.zig").ASCIIRay;
 const Allocator = std.mem.Allocator;
-const ray = @cImport({
-    @cInclude("raylib.h");
-});
+const ray = @import("ray.zig").ray;
 
 pub fn init(allocator: Allocator, _: *ASCIIRay) *anyopaque {
     return common.create_ctx(allocator, day01.work);

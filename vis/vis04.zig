@@ -4,9 +4,7 @@ const handler = @import("handler.zig").handler;
 const day04 = @import("src").day04;
 const ASCIIRay = @import("asciiray.zig").ASCIIRay;
 const Allocator = std.mem.Allocator;
-const ray = @cImport({
-    @cInclude("raylib.h");
-});
+const ray = @import("ray.zig").ray;
 
 pub var scratch: [256][256]u32 = [_][256]u32{[_]u32{0} ** 256} ** 256;
 pub var colmap: [256]ray.Color = [_]ray.Color{ray.DARKGRAY} ** 256;

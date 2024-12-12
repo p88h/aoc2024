@@ -1,9 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-
-const ray = @cImport({
-    @cInclude("raylib.h");
-});
+const ray = @import("ray.zig").ray;
 
 pub const LightType = enum { LIGHT_DIRECTIONAL, LIGHT_POINT };
 

@@ -4,9 +4,7 @@ const day02 = @import("src").day02;
 const handler = @import("handler.zig").handler;
 const ASCIIRay = @import("asciiray.zig").ASCIIRay;
 const Allocator = std.mem.Allocator;
-const ray = @cImport({
-    @cInclude("raylib.h");
-});
+const ray = @import("ray.zig").ray;
 
 pub fn init(allocator: Allocator, a: *ASCIIRay) *anyopaque {
     a.v.fps = 6;

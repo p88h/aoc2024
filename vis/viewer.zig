@@ -1,9 +1,7 @@
 const std = @import("std");
 const fs = std.fs;
 const FFPipe = @import("ffpipe.zig").FFPipe;
-const ray = @cImport({
-    @cInclude("raylib.h");
-});
+const ray = @import("ray.zig").ray;
 const Allocator = std.mem.Allocator;
 
 pub const Viewer = struct {

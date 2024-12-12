@@ -4,9 +4,7 @@ const handler = @import("handler.zig").handler;
 const day03 = @import("src").day03;
 const ASCIIRay = @import("asciiray.zig").ASCIIRay;
 const Allocator = std.mem.Allocator;
-const ray = @cImport({
-    @cInclude("raylib.h");
-});
+const ray = @import("ray.zig").ray;
 
 const dfa_ctx = struct {
     hist: []i32,
