@@ -30,7 +30,7 @@ pub inline fn check(ctx: *Context, pos: vec2) u8 {
     return cptr(ctx, pos).*;
 }
 
-const vec2 = @Vector(2, i32);
+pub const vec2 = @Vector(2, i32);
 
 pub fn scan(ctx: *Context, start: vec2, shared: bool) vec2 {
     var stack = std.ArrayList(vec2).init(ctx.allocator);
