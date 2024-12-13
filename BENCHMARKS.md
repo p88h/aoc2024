@@ -42,6 +42,8 @@ day 08:  1.4 µs  1.0 µs  2.7 µs  5.2 µs (+-1%) iter=9110
 day 09: 20.1 µs 37.7 µs 76.0 µs  0.1 ms (+-2%) iter=9910    
 day 10:  5.6 µs  8.8 µs  8.1 µs 22.6 µs (+-4%) iter=98110     
 day 11:  0.1 ms 39.9 µs  0.2 ms  0.4 ms (+-3%) iter=9910    
+day 12: 12.0 ns  0.1 ms  0.1 ms  0.3 ms (+-1%) iter=3010    
+day 13:  5.9 µs  0.8 µs  0.7 µs  7.5 µs (+-1%) iter=14110    
 
-all days total:         1.1 ms
+all days total:         1.5 ms
 ```
