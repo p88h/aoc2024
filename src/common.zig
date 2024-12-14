@@ -41,6 +41,8 @@ pub fn split_lines(allocator: Allocator, buf: []u8) [][]const u8 {
     var lines = std.ArrayList([]const u8).init(allocator);
     var iter = std.mem.splitAny(u8, buf, "\n");
     while (iter.next()) |line| lines.append(line) catch unreachable;
+    // remove last line if empty
+    if (lines.items[lines.items.len - 1].len == 0) _ = lines.pop();
     return lines.items;
 }
 
@@ -51,9 +53,46 @@ pub const Worker = struct {
     part2: *const fn (ctx: *anyopaque) []u8,
 };
 
-pub fn create_ctx(allocator: Allocator, work: Worker) *anyopaque {
-    const filename = std.fmt.allocPrint(allocator, "input/day{s}.txt", .{work.day}) catch unreachable;
+pub fn download_file(allocator: Allocator, url: []u8, path: []u8, cookie: ?[]const u8) !void {
+    std.debug.print("Trying to download {s} from {s}", .{ path, url });
+    var http_client = std.http.Client{ .allocator = allocator };
+    defer http_client.deinit();
+    var response = std.ArrayList(u8).init(allocator);
+    defer response.deinit();
+    const res = try http_client.fetch(.{
+        .location = .{ .url = url },
+        .method = .GET,
+        .response_storage = .{ .dynamic = &response },
+        .extra_headers = &[_]std.http.Header{.{ .name = "Cookie", .value = cookie orelse "" }},
+    });
+    if (res.status != .ok)
+        return error.FailedToFetchInputFile;
+    const dir = try std.fs.cwd().makeOpenPath(std.fs.path.dirname(path).?, .{});
+    const file = try dir.createFile(std.fs.path.basename(path), .{});
+    defer file.close();
+    try file.writeAll(response.items);
+}
+
+pub fn get_input(allocator: Allocator, day: []const u8) []u8 {
+    const filename = std.fmt.allocPrint(allocator, "input/day{s}.txt", .{day}) catch unreachable;
+    std.fs.cwd().access(filename, .{}) catch |err| {
+        if (err == error.FileNotFound) {
+            var buf = [_]u8{0} ** 1024;
+            const cookie = std.fs.cwd().readFile(".cookie", &buf) catch "";
+            const url = std.fmt.allocPrint(
+                allocator,
+                "https://adventofcode.com/2024/day/{s}/input",
+                .{day},
+            ) catch unreachable;
+            download_file(allocator, url, filename, cookie) catch {};
+        }
+    };
     const buf = read_file(allocator, filename);
+    return buf;
+}
+
+pub fn create_ctx(allocator: Allocator, work: Worker) *anyopaque {
+    const buf = get_input(allocator, work.day);
     const lines = split_lines(allocator, buf);
     return work.parse(allocator, buf, lines);
 }

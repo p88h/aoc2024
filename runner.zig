@@ -29,8 +29,7 @@ fn cmpByLast(ctx: void, a: @Vector(4, u64), b: @Vector(4, u64)) bool {
 }
 
 pub fn run_day(allocator: Allocator, work: common.Worker, single: bool) u64 {
-    const filename = std.fmt.allocPrint(allocator, "input/day{s}.txt", .{work.day}) catch unreachable;
-    const buf = common.read_file(allocator, filename);
+    const buf = common.get_input(allocator, work.day);
     const max_chunks = 100;
     var times = [_]@Vector(4, u64){@splat(0)} ** max_chunks;
     var mid: usize = 0;
