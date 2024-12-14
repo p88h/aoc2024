@@ -140,10 +140,13 @@ pub fn score_range(ctx: *Context, fmin: usize, fmax: usize) void {
 
 pub fn part2(ctx: *Context) []u8 {
     ctx.wait_group.reset();
-    // look through up to 12000 frames in parallel, 1000 blocks each thread
-    for (0..12) |f| {
+    const max_size = W * H;
+    const num_threads = 24;
+    const block_size = (max_size + num_threads - 1) / num_threads;
+    // this will look through up to all 101*103 states in parallel, ~440 in each thread
+    for (0..num_threads) |f| {
         ctx.wait_group.start();
-        common.pool.spawn(score_range, .{ ctx, f * 1000, (f + 1) * 1000 }) catch unreachable;
+        common.pool.spawn(score_range, .{ ctx, f * block_size, (f + 1) * block_size }) catch unreachable;
     }
     // wait for remaining threads
     common.pool.waitAndWork(&ctx.wait_group);
