@@ -110,21 +110,28 @@ pub fn part1(ctx: *Context) []u8 {
     return std.fmt.allocPrint(ctx.allocator, "{d}", .{ret}) catch unreachable;
 }
 
-pub fn score(ctx: *Context, fmin: usize, fmax: usize) void {
-    var frame = [_]u16{0} ** ((W * H + 8) / 9);
+pub const FRAME_SIZE = (W * H + 8) / 9;
+
+pub fn score(ctx: *Context, f: usize, frame: *[FRAME_SIZE]u16) u16 {
+    @memset(frame, 0);
+    for (ctx.robots) |robot| {
+        const fpos = robot.pos + @as(vec2, @splat(@intCast(f))) * robot.dir;
+        const fx = @mod(fpos[0], W);
+        const fy = @mod(fpos[1], H);
+        const idx: usize = @intCast(fy * W + fx);
+        const off = idx / 9;
+        const bit = idx % 9;
+        frame[off] |= @as(u16, 1) << @as(u4, @intCast(bit));
+    }
+    var tot: u16 = 0;
+    for (frame) |word| tot += ctx.model[word];
+    return tot;
+}
+
+pub fn score_range(ctx: *Context, fmin: usize, fmax: usize) void {
+    var frame = [_]u16{0} ** FRAME_SIZE;
     for (fmin..fmax) |f| {
-        @memset(&frame, 0);
-        for (ctx.robots) |robot| {
-            const fpos = robot.pos + @as(vec2, @splat(@intCast(f))) * robot.dir;
-            const fx = @mod(fpos[0], W);
-            const fy = @mod(fpos[1], H);
-            const idx: usize = @intCast(fy * W + fx);
-            const off = idx / 9;
-            const bit = idx % 9;
-            frame[off] |= @as(u16, 1) << @as(u4, @intCast(bit));
-        }
-        var tot: u16 = 0;
-        for (frame) |word| tot += ctx.model[word];
+        const tot = score(ctx, f, &frame);
         if (tot > 50) ctx.egg = f;
         if (ctx.egg > 0) break;
     }
@@ -136,7 +143,7 @@ pub fn part2(ctx: *Context) []u8 {
     // look through up to 12000 frames in parallel, 1000 blocks each thread
     for (0..12) |f| {
         ctx.wait_group.start();
-        common.pool.spawn(score, .{ ctx, f * 1000, (f + 1) * 1000 }) catch unreachable;
+        common.pool.spawn(score_range, .{ ctx, f * 1000, (f + 1) * 1000 }) catch unreachable;
     }
     // wait for remaining threads
     common.pool.waitAndWork(&ctx.wait_group);
