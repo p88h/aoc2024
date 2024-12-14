@@ -165,19 +165,77 @@ pub fn score_range(ctx: *Context, fmin: usize, fmax: usize) void {
     ctx.wait_group.finish();
 }
 
-pub fn part2(ctx: *Context) []u8 {
+pub fn part2_long(ctx: *Context) []u8 {
+    // this will look through up to all 101*103 states in parallel, ~440 in each thread
     ctx.wait_group.reset();
     const max_size = W * H;
     const num_threads = 24;
     const block_size = (max_size + num_threads - 1) / num_threads;
-    // this will look through up to all 101*103 states in parallel, ~440 in each thread
     for (0..num_threads) |f| {
         ctx.wait_group.start();
         common.pool.spawn(score_range, .{ ctx, f * block_size, (f + 1) * block_size }) catch unreachable;
     }
-    // wait for remaining threads
     common.pool.waitAndWork(&ctx.wait_group);
     return std.fmt.allocPrint(ctx.allocator, "{any}", .{ctx.egg}) catch unreachable;
+}
+
+// compute horizontal and vertical variance
+pub fn hvscore(ctx: *Context, f: usize) @Vector(2, i32) {
+    var hsum = [_]i32{0} ** W;
+    var htot: i32 = 0;
+    var vsum = [_]i32{0} ** H;
+    var vtot: i32 = 0;
+    const cnt: i32 = @intCast(ctx.robots.len);
+    for (ctx.robots) |robot| {
+        const fpos = robot.pos + @as(vec2, @splat(@intCast(f))) * robot.dir;
+        const fx = @mod(fpos[0], W);
+        const fy = @mod(fpos[1], H);
+        hsum[@intCast(fx)] += 1;
+        vsum[@intCast(fy)] += 1;
+        htot += fx;
+        vtot += fy;
+    }
+    // h, v mean
+    const hexp = @divFloor(htot, cnt);
+    const vexp = @divFloor(htot, cnt);
+    var devx: i32 = 0;
+    for (hsum, 0..) |s, x| {
+        const ix: i32 = @intCast(x);
+        devx += s * (ix - hexp) * (ix - hexp);
+    }
+    var devy: i32 = 0;
+    for (vsum, 0..) |s, y| {
+        const iy: i32 = @intCast(y);
+        devy += s * (iy - vexp) * (iy - vexp);
+    }
+    return @Vector(2, i32){ @divFloor(devx, cnt), @divFloor(devy, cnt) };
+}
+
+// use minimum variance across all frames and construct answer by finding P that
+// P == Xmin mod W
+// P == Ymin mod H
+pub fn part2(ctx: *Context) []u8 {
+    var min: @Vector(2, i32) = @splat(9999);
+    var pos: @Vector(2, u32) = @splat(0);
+    for (0..H) |f| {
+        const hv = hvscore(ctx, f);
+        inline for (0..2) |i| {
+            if (min[i] > hv[i]) {
+                min[i] = hv[i];
+                pos[i] = @intCast(f);
+            }
+        }
+    }
+    // values are tiny, this loop is fastest way to compute.
+    var tmp = pos;
+    while (tmp[0] != tmp[1]) {
+        if (tmp[0] < tmp[1]) {
+            tmp[0] += @intCast(W);
+        } else {
+            tmp[1] += @intCast(H);
+        }
+    }
+    return std.fmt.allocPrint(ctx.allocator, "{any}", .{tmp[0]}) catch unreachable;
 }
 
 // boilerplate
