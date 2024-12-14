@@ -7,19 +7,23 @@ Zig: `0.14.0-dev.1911+3bf89f55c`
 ```
 $ zig build -Doptimize=ReleaseFast run -- all
         parse   part1   part2   total
-day 00: 11.0 ns 17.0 ns 17.0 ns 45.0 ns (+-2%) iter=98110     
-day 01:  8.1 µs 23.1 µs  7.5 µs 38.8 µs (+-1%) iter=34110    
-day 02: 11.9 µs  5.5 µs 17.5 µs 35.0 µs (+-1%) iter=9110    
-day 03: 12.0 ns 16.8 µs 15.5 µs 32.3 µs (+-1%) iter=9110    
-day 04: 12.0 ns 55.3 µs 26.9 µs 82.3 µs (+-1%) iter=14110    
-day 05: 11.9 µs  1.2 µs  2.9 µs 16.1 µs (+-2%) iter=98110    
-day 06:  0.2 µs 13.1 µs  0.4 ms  0.4 ms (+-1%) iter=4010    
-day 07: 48.4 µs 82.9 µs 79.9 µs  0.2 ms (+-1%) iter=2510    
+day 00: 10.0 ns 17.0 ns 17.0 ns 44.0 ns (+-1%) iter=14110     
+day 01:  8.5 µs 16.1 µs  7.6 µs 32.3 µs (+-2%) iter=98110    
+day 02: 10.6 µs  5.8 µs 17.8 µs 34.4 µs (+-1%) iter=14110    
+day 03: 10.0 ns 16.3 µs 15.1 µs 31.5 µs (+-1%) iter=9110    
+day 04: 10.0 ns 56.6 µs 26.0 µs 82.7 µs (+-1%) iter=14110    
+day 05: 12.4 µs  1.1 µs  2.5 µs 16.1 µs (+-2%) iter=98110    
+day 06:  0.2 µs 13.5 µs  0.4 ms  0.4 ms (+-3%) iter=9910    
+day 07: 48.1 µs 82.5 µs 78.4 µs  0.2 ms (+-1%) iter=1010    
 day 08:  0.8 µs  0.6 µs  1.6 µs  3.1 µs (+-1%) iter=24110    
-day 09: 25.6 µs 77.1 µs 89.5 µs  0.1 ms (+-1%) iter=3510    
-day 10:  7.5 µs  8.8 µs  7.3 µs 23.7 µs (+-1%) iter=39110    
+day 09: 28.2 µs 75.4 µs 84.6 µs  0.1 ms (+-1%) iter=4010    
+day 10:  7.5 µs  9.1 µs  6.8 µs 23.4 µs (+-1%) iter=39110    
+day 11:  0.2 ms 42.6 µs  0.2 ms  0.5 ms (+-1%) iter=2010    
+day 12: 18.0 ns  0.2 ms  0.2 ms  0.5 ms (+-1%) iter=1010    
+day 13:  5.9 µs  1.2 µs  1.4 µs  8.5 µs (+-3%) iter=98110     
+day 14:  7.8 µs  1.8 µs  2.5 ms  2.5 ms (+-6%) iter=1000    
 
-all days total:         1.0 ms
+all days total:         4.6 ms
 ```
 
 CPU: Apple M3 Max (12+4 cores)
