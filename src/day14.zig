@@ -137,11 +137,29 @@ pub fn score(ctx: *Context, f: usize, frame: *[FRAME_SIZE]u64) u16 {
     return tot;
 }
 
+// instead of looking for edges, just look for solid 8-bit runs
+pub fn flscore(ctx: *Context, f: usize, frame: *[FRAME_SIZE]u64) u16 {
+    @memset(frame, 0);
+    for (ctx.robots) |robot| {
+        const fpos = robot.pos + @as(vec2, @splat(@intCast(f))) * robot.dir;
+        const fx: usize = @intCast(@mod(fpos[0], W));
+        const fy: usize = @intCast(@mod(fpos[1], H));
+        const bi = fy * W + fx;
+        const off = bi / 64;
+        const bit = bi % 64;
+        frame[off] |= @as(u64, 1) << @as(u6, @intCast(bit));
+    }
+    var tot: u16 = 0;
+    const bvf: *[FRAME_SIZE / 4]@Vector(32, u8) = @ptrCast(@alignCast(frame));
+    for (bvf) |bv| tot += std.simd.countElementsWithValue(bv, 255);
+    return tot;
+}
+
 pub fn score_range(ctx: *Context, fmin: usize, fmax: usize) void {
-    var frame = [_]u64{0} ** FRAME_SIZE;
+    var frame = [_]@Vector(32, u8){@splat(0)} ** (FRAME_SIZE / 4);
     for (fmin..fmax) |f| {
-        const tot = score(ctx, f, &frame);
-        if (tot > 50) ctx.egg = f;
+        const tot = flscore(ctx, f, @ptrCast(&frame));
+        if (tot > 10) ctx.egg = f;
         if (ctx.egg > 0) break;
     }
     ctx.wait_group.finish();
