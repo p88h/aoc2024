@@ -85,10 +85,10 @@ pub fn parse(allocator: Allocator, _: []u8, lines: [][]const u8) *Context {
     return ctx;
 }
 
-pub fn part1(ctx: *Context) []u8 {
-    var tmp: @Vector(4, i32) = @splat(0);
+pub fn qscore(ctx: *Context, f: usize) u32 {
+    var tmp: @Vector(4, u32) = @splat(0);
     for (ctx.robots) |robot| {
-        const fpos = robot.pos + @as(vec2, @splat(100)) * robot.dir;
+        const fpos = robot.pos + @as(vec2, @splat(@intCast(f))) * robot.dir;
         const fx = @mod(fpos[0], W);
         const fy = @mod(fpos[1], H);
         // std.debug.print("{any} => {any} == {d} (mod {}) {d} (mod {})\n", .{ robot, fpos, fx, W, fy, H });
@@ -105,30 +105,40 @@ pub fn part1(ctx: *Context) []u8 {
             tmp[3] += 1;
         }
     }
-    const ret = @reduce(.Mul, tmp);
-    return std.fmt.allocPrint(ctx.allocator, "{d}", .{ret}) catch unreachable;
+    return @reduce(.Mul, tmp);
 }
 
-pub const FRAME_SIZE = (W * H + 8) / 9;
+pub fn part1(ctx: *Context) []u8 {
+    return std.fmt.allocPrint(ctx.allocator, "{d}", .{qscore(ctx, 100)}) catch unreachable;
+}
 
-pub fn score(ctx: *Context, f: usize, frame: *[FRAME_SIZE]u16) u16 {
+const BW = (W + 2) / 3;
+const BH = (H + 2) / 3;
+pub const FRAME_SIZE = (BW * BH * 9 + 62) / 63;
+
+pub fn score(ctx: *Context, f: usize, frame: *[FRAME_SIZE]u64) u16 {
     @memset(frame, 0);
     for (ctx.robots) |robot| {
         const fpos = robot.pos + @as(vec2, @splat(@intCast(f))) * robot.dir;
-        const fx = @mod(fpos[0], W);
-        const fy = @mod(fpos[1], H);
-        const idx: usize = @intCast(fy * W + fx);
-        const off = idx / 9;
-        const bit = idx % 9;
-        frame[off] |= @as(u16, 1) << @as(u4, @intCast(bit));
+        const fx: usize = @intCast(@mod(fpos[0], W));
+        const fy: usize = @intCast(@mod(fpos[1], H));
+        const bx = fx / 3;
+        const by = fy / 3;
+        const bi = (by * BW + bx) * 9;
+        const off = bi / 63;
+        const ii: usize = (fy % 3) * 3 + (fx % 3);
+        const bit = (bi % 63) + ii;
+        frame[off] |= @as(u64, 1) << @as(u6, @intCast(bit));
     }
     var tot: u16 = 0;
-    for (frame) |word| tot += ctx.model[word];
+    for (frame) |word| {
+        inline for (0..7) |w| tot += ctx.model[(word >> w * 9) & 511];
+    }
     return tot;
 }
 
 pub fn score_range(ctx: *Context, fmin: usize, fmax: usize) void {
-    var frame = [_]u16{0} ** FRAME_SIZE;
+    var frame = [_]u64{0} ** FRAME_SIZE;
     for (fmin..fmax) |f| {
         const tot = score(ctx, f, &frame);
         if (tot > 50) ctx.egg = f;

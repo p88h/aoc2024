@@ -10,7 +10,7 @@ const sol = @import("src").day14;
 const VisState = struct {
     ctx: *sol.Context,
     tex: ray.RenderTexture2D,
-    frame: [sol.FRAME_SIZE]u16,
+    frame: [sol.FRAME_SIZE]u64,
 };
 
 pub fn init(allocator: Allocator, a: *ASCIIRay) *VisState {
