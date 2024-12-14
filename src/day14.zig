@@ -40,8 +40,7 @@ pub const Context = struct {
     running: std.atomic.Value(usize),
 };
 
-// build our 3x3 pattern detector -- this actually happens at compile time
-// .. which is nice for runtime, bad for overall compile time. but meh.
+// build our 3x3 pattern detector
 pub fn train(ctx: *Context) void {
     ctx.model = ctx.allocator.alloc(u16, 1 << 9) catch unreachable;
     @memset(ctx.model, 0);
@@ -160,6 +159,7 @@ pub const work = common.Worker{
     .part1 = @ptrCast(&part1),
     .part2 = @ptrCast(&part2),
 };
+
 pub fn main() void {
     common.run_day(work);
 }
