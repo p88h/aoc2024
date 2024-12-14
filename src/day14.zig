@@ -79,7 +79,7 @@ pub fn parse(allocator: Allocator, _: []u8, lines: [][]const u8) *Context {
     ctx.robots = allocator.alloc(Robot, lines.len) catch unreachable;
     for (lines, 0..) |line, i| ctx.robots[i] = Robot.init(parseVec(line, 2));
     ctx.allocator = allocator;
-    train(ctx);
+    // train(ctx);
     ctx.egg = 0;
     ctx.running.store(0, .seq_cst);
     return ctx;
