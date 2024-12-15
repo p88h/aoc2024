@@ -32,7 +32,7 @@ pub fn read_file(allocator: Allocator, filename: []const u8) []u8 {
         std.debug.panic("file not found: {s}\n", .{filename});
     };
     defer file.close();
-    return file.readToEndAlloc(allocator, 65535) catch {
+    return file.readToEndAlloc(allocator, 232072) catch {
         std.debug.panic("Error reading: {s}\n", .{filename});
     };
 }

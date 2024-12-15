@@ -79,7 +79,6 @@ pub fn parse(allocator: Allocator, _: []u8, lines: [][]const u8) *Context {
     ctx.robots = allocator.alloc(Robot, lines.len) catch unreachable;
     for (lines, 0..) |line, i| ctx.robots[i] = Robot.init(parseVec(line, 2));
     ctx.allocator = allocator;
-    // train(ctx);
     ctx.egg = 0;
     ctx.running.store(0, .seq_cst);
     return ctx;
@@ -211,10 +210,8 @@ pub fn hvscore(ctx: *Context, f: usize) @Vector(2, i32) {
     return @Vector(2, i32){ @divFloor(devx, cnt), @divFloor(devy, cnt) };
 }
 
-// use minimum variance across all frames and construct answer by finding P that
-// P == Xmin mod W
-// P == Ymin mod H
-pub fn part2(ctx: *Context) []u8 {
+// find minimum X/Y variances across all frames
+pub fn hvmins(ctx: *Context) @Vector(2, u32) {
     var min: @Vector(2, i32) = @splat(9999);
     var pos: @Vector(2, u32) = @splat(0);
     for (0..H) |f| {
@@ -226,8 +223,15 @@ pub fn part2(ctx: *Context) []u8 {
             }
         }
     }
+    return pos;
+}
+
+// construct answer by finding P that
+// P == Xmin mod W
+// P == Ymin mod H
+pub fn part2(ctx: *Context) []u8 {
+    var tmp = hvmins(ctx);
     // values are tiny, this loop is fastest way to compute.
-    var tmp = pos;
     while (tmp[0] != tmp[1]) {
         if (tmp[0] < tmp[1]) {
             tmp[0] += @intCast(W);
