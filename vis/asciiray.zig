@@ -48,7 +48,8 @@ pub const ASCIIRay = struct {
     }
 
     pub fn writeEx(self: *ASCIIRay, msg: []const u8, color: ray.Color) void {
-        const msg_width = @as(f32, @floatFromInt(msg.len)) * (self.fsize / 2);
+        const zero = std.mem.indexOf(u8, msg, "\x00") orelse msg.len;
+        const msg_width = @as(f32, @floatFromInt(zero)) * (self.fsize / 2);
         if (self.cx + msg_width > @as(f32, @floatFromInt(self.v.width))) {
             self.cx = 0;
             self.cy += self.fsize;

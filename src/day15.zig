@@ -40,17 +40,18 @@ pub const Context = struct {
         }
     }
 
-    pub fn move2(self: *Context, dir: Vec2) void {
+    pub fn move2(self: *Context, dir: Vec2) usize {
         var tmp = self.robot + dir;
         var ch = self.tile(tmp);
         // quick
-        if (ch.* == '#') return;
+        if (ch.* == '#') return 0;
         if (ch.* == '.') {
             self.tile(self.robot).* = '.';
             ch.* = '@';
             self.robot = tmp;
-            return;
+            return 0;
         }
+        var cnt: usize = 0;
         // left/right is _almost_ the same as in part1, except we have to shift memory around
         if (dir[0] == 0) {
             while (ch.* != '.' and ch.* != '#') {
@@ -58,7 +59,7 @@ pub const Context = struct {
                 ch = self.tile(tmp);
             }
             // no move
-            if (ch.* == '#') return;
+            if (ch.* == '#') return 0;
             std.debug.assert(ch.* == '.');
             // shift backwards
             while (tmp[1] != self.robot[1]) {
@@ -66,10 +67,11 @@ pub const Context = struct {
                 const prev = self.tile(tmp);
                 ch.* = prev.*;
                 ch = prev;
+                cnt += 1;
             }
             self.robot += dir;
             ch.* = '.';
-            return;
+            return cnt;
         }
         // not so quick: for up-down we'll build a list of positions to move
         var idx: usize = 0;
@@ -84,7 +86,7 @@ pub const Context = struct {
             // no need to add anything, this can be moved
             if (ch.* == '.') continue;
             // abort whole move
-            if (ch.* == '#') return;
+            if (ch.* == '#') return 0;
             std.debug.assert(ch.* == '[' or ch.* == ']');
             // got to move this and its neighbor
             var neighbor = dst + Vec2{ 0, 1 };
@@ -105,8 +107,10 @@ pub const Context = struct {
             std.debug.assert(self.tile(last + dir).* == '.');
             self.tile(last + dir).* = ch.*;
             ch.* = '.';
+            cnt += 1;
         }
         self.robot += dir;
+        return cnt;
     }
 
     pub fn score(self: *Context, ch: u8) usize {
@@ -182,10 +186,10 @@ pub fn part2(ctx: *Context) []u8 {
     for (ctx.instructions) |line| {
         for (line) |ch| {
             switch (ch) {
-                '^' => ctx.move2(Vec2{ -1, 0 }),
-                'v' => ctx.move2(Vec2{ 1, 0 }),
-                '<' => ctx.move2(Vec2{ 0, -1 }),
-                '>' => ctx.move2(Vec2{ 0, 1 }),
+                '^' => _ = ctx.move2(Vec2{ -1, 0 }),
+                'v' => _ = ctx.move2(Vec2{ 1, 0 }),
+                '<' => _ = ctx.move2(Vec2{ 0, -1 }),
+                '>' => _ = ctx.move2(Vec2{ 0, 1 }),
                 else => {},
             }
         }
