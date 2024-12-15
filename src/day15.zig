@@ -14,14 +14,12 @@ pub const Context = struct {
     robot2: Vec2,
     instructions: [][]const u8,
     work: std.ArrayList(Vec2),
-    visited: std.AutoHashMap(Vec2, bool),
+    visited: u128,
 
     pub fn init(self: *Context, allocator: Allocator) void {
         self.allocator = allocator;
         self.work = @TypeOf(self.work).init(allocator);
         self.work.ensureTotalCapacity(512) catch unreachable;
-        self.visited = @TypeOf(self.visited).init(allocator);
-        self.visited.ensureTotalCapacity(512) catch unreachable;
     }
 
     pub inline fn tile(self: *Context, pos: Vec2) *u8 {
@@ -38,6 +36,13 @@ pub const Context = struct {
             self.robot += dir;
             self.tile(self.robot).* = '@';
         }
+    }
+
+    pub inline fn not_visited(self: *Context, pos: i32) bool {
+        const mask = @as(u128, 1) << @as(u7, @intCast(pos));
+        if (self.visited & mask == mask) return false;
+        self.visited |= mask;
+        return true;
     }
 
     pub fn move2(self: *Context, dir: Vec2) usize {
@@ -74,12 +79,18 @@ pub const Context = struct {
             return cnt;
         }
         // not so quick: for up-down we'll build a list of positions to move
+        var prevy = self.robot[0] - dir[0];
         var idx: usize = 0;
         self.work.clearRetainingCapacity();
-        self.visited.clearRetainingCapacity();
         self.work.append(self.robot) catch unreachable;
+        // this is actually a BFS, moving vertically line by line
         while (idx < self.work.items.len) {
             const src = self.work.items[idx];
+            // only need to keep 'visited' for the next line
+            if (src[0] != prevy) {
+                self.visited = 0;
+                prevy = src[0];
+            }
             idx += 1;
             const dst = src + dir;
             ch = self.tile(dst);
@@ -91,14 +102,8 @@ pub const Context = struct {
             // got to move this and its neighbor
             var neighbor = dst + Vec2{ 0, 1 };
             if (ch.* == ']') neighbor = dst + Vec2{ 0, -1 };
-            if (!self.visited.contains(dst)) {
-                self.work.append(dst) catch unreachable;
-                self.visited.put(dst, true) catch unreachable;
-            }
-            if (!self.visited.contains(neighbor)) {
-                self.work.append(neighbor) catch unreachable;
-                self.visited.put(neighbor, true) catch unreachable;
-            }
+            if (self.not_visited(dst[1])) self.work.append(dst) catch unreachable;
+            if (self.not_visited(neighbor[1])) self.work.append(neighbor) catch unreachable;
         }
         // apparently we can move everything. Let's go backwards.
         while (self.work.items.len > 0) {
