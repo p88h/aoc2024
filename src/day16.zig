@@ -15,8 +15,8 @@ pub const Context = struct {
     work2: []i32,
     best: i32,
     eval: usize,
-    path: std.AutoHashMap(Vec2, bool),
-    collect: bool,
+    path: std.ArrayList(Vec2),
+    collect: u8,
 };
 
 pub fn parse(allocator: Allocator, buf: []u8, lines: [][]const u8) *Context {
@@ -29,11 +29,11 @@ pub fn parse(allocator: Allocator, buf: []u8, lines: [][]const u8) *Context {
         }
     }
     ctx.best = 0;
-    ctx.collect = false;
+    ctx.collect = 0;
     ctx.dimx = lines[0].len + 1;
     ctx.dimy = lines.len;
     ctx.map = buf;
-    ctx.path = std.AutoHashMap(Vec2, bool).init(allocator);
+    ctx.path = std.ArrayList(Vec2).init(allocator);
     ctx.work1 = allocator.alloc(i32, ctx.dimx * ctx.dimy * 4) catch unreachable;
     ctx.work2 = allocator.alloc(i32, ctx.dimx * ctx.dimy * 4) catch unreachable;
     @memset(ctx.work1, 0);
@@ -59,8 +59,9 @@ pub fn bfs(ctx: *Context, start: usize, end: Vec2, dist: []i32) usize {
         const cur: Vec2 = Vec2{ @intCast(cpos / ctx.dimx), @intCast(cpos % ctx.dimx) };
         ecnt += 1;
         idx += 1;
-        if (ctx.collect) {
-            ctx.path.put(cur, true) catch unreachable;
+        if (ctx.collect > 0 and ctx.map[cpos] != ctx.collect) {
+            ctx.map[cpos] = ctx.collect;
+            ctx.path.append(cur) catch unreachable;
         }
         if (std.simd.countTrues(cur == end) == 2) {
             return cval;
@@ -109,17 +110,16 @@ pub fn part1(ctx: *Context) []u8 {
     const spos: usize = @intCast(ctx.start[0] * @as(i32, @intCast(ctx.dimx)) + ctx.start[1]);
     ctx.eval = bfs(ctx, spos * 4 + 1, ctx.end, ctx.work1);
     ctx.best = ctx.work1[ctx.eval] + 1;
-    return std.fmt.allocPrint(ctx.allocator, "{d}", .{ctx.best - 1}) catch unreachable;
+    return std.fmt.allocPrint(ctx.allocator, "{d}", .{ctx.best - 2}) catch unreachable;
 }
 
 pub fn part2(ctx: *Context) []u8 {
-    ctx.collect = true;
+    ctx.collect = 'O';
     const bval = bfs(ctx, ctx.eval ^ 1, ctx.start, ctx.work2);
     const bdist = ctx.work2[bval] + ctx.work1[bval ^ 1];
     // std.debug.print("bd={d}, best={}\n", .{ bdist, ctx.best });
     var ret: usize = 0;
-    var iter = ctx.path.keyIterator();
-    while (iter.next()) |cur| {
+    for (ctx.path.items) |cur| {
         const pos: usize = @intCast(cur[0] * @as(i32, @intCast(ctx.dimx)) + cur[1]);
         for (0..4) |k| {
             if (ctx.work1[pos * 4 + k] == 0 or ctx.work2[pos * 4 + k ^ 1] == 0) continue;
