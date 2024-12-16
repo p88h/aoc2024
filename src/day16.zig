@@ -16,6 +16,7 @@ pub const Context = struct {
     best: i32,
     eval: usize,
     path: std.AutoHashMap(Vec2, bool),
+    collect: bool,
 };
 
 pub fn parse(allocator: Allocator, buf: []u8, lines: [][]const u8) *Context {
@@ -28,6 +29,7 @@ pub fn parse(allocator: Allocator, buf: []u8, lines: [][]const u8) *Context {
         }
     }
     ctx.best = 0;
+    ctx.collect = false;
     ctx.dimx = lines[0].len + 1;
     ctx.dimy = lines.len;
     ctx.map = buf;
@@ -57,7 +59,7 @@ pub fn bfs(ctx: *Context, start: usize, end: Vec2, dist: []i32) usize {
         const cur: Vec2 = Vec2{ @intCast(cpos / ctx.dimx), @intCast(cpos % ctx.dimx) };
         ecnt += 1;
         idx += 1;
-        if (ctx.best > 0) {
+        if (ctx.collect) {
             ctx.path.put(cur, true) catch unreachable;
         }
         if (std.simd.countTrues(cur == end) == 2) {
@@ -111,6 +113,7 @@ pub fn part1(ctx: *Context) []u8 {
 }
 
 pub fn part2(ctx: *Context) []u8 {
+    ctx.collect = true;
     const bval = bfs(ctx, ctx.eval ^ 1, ctx.start, ctx.work2);
     const bdist = ctx.work2[bval] + ctx.work1[bval ^ 1];
     // std.debug.print("bd={d}, best={}\n", .{ bdist, ctx.best });
