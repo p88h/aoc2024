@@ -130,13 +130,14 @@ pub fn solve_rec(ctx: *Context, b: u64, ofs: usize) u64 {
         return b;
     }
     // std.debug.print("{d} : {any}\n", .{ b, ofs });
-    for (0..64) |a| {
-        ctx.m.reset(b * 64 + a);
+    for (0..8) |a| {
+        if (b == 0 and a == 0) continue;
+        ctx.m.reset(b * 8 + a);
         ctx.m.run_until(b);
         const olen = ctx.m.out.items.len;
-        if (olen < 2) continue;
-        if (ctx.m.program[plen - ofs - 2] == ctx.m.out.items[0] and ctx.m.program[plen - ofs - 1] == ctx.m.out.items[1]) {
-            const v = solve_rec(ctx, b * 64 + a, ofs + 2);
+        if (olen < 1) continue;
+        if (ctx.m.program[plen - ofs - 1] == ctx.m.out.items[0]) {
+            const v = solve_rec(ctx, b * 8 + a, ofs + 1);
             if (v > 0) return v;
         }
     }
