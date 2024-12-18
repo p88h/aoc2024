@@ -34,6 +34,7 @@ pub fn update_path(vis: *VisState, idx: usize) void {
     vis.prev = vis.best;
     vis.pidx = idx + 1;
     vis.scnt += 1;
+    @memset(ctx.dist, 0);
     vis.best = sol.bfs(ctx, ctx.start, ctx.end);
     if (vis.best == 0) return;
     vis.best -= 1;
