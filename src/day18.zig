@@ -60,7 +60,6 @@ pub inline fn vpos(v: Vec2) usize {
 pub fn bfs(ctx: *Context, start: Vec2, end: Vec2) usize {
     const dirs = [_]Vec2{ Vec2{ 0, -1 }, Vec2{ 0, 1 }, Vec2{ -1, 0 }, Vec2{ 1, 0 } };
     const spos = vpos(start);
-    @memset(ctx.dist, 0);
     ctx.dist[spos] = 1;
     ctx.stack[0] = start;
     var idx: usize = 0;
@@ -73,10 +72,10 @@ pub fn bfs(ctx: *Context, start: Vec2, end: Vec2) usize {
         for (dirs) |move| {
             const next = cur + move;
             const npos = vpos(next);
-            if (ctx.map[npos] == '#') continue;
             if (ctx.dist[npos] == 0) {
-                ctx.prev[npos] = @intCast(cpos);
                 ctx.dist[npos] = ctx.dist[cpos] + 1;
+                if (ctx.map[npos] == '#') continue;
+                ctx.prev[npos] = @intCast(cpos);
                 ctx.stack[cnt] = next;
                 cnt += 1;
             }
@@ -91,38 +90,27 @@ pub fn part1(ctx: *Context) []u8 {
         const tmp = ctx.blocks[i];
         ctx.map[vpos(tmp)] = '#';
     }
+    @memset(ctx.dist, 0);
     const ret = bfs(ctx, ctx.start, ctx.end);
     return std.fmt.allocPrint(ctx.allocator, "{d}", .{ret - 1}) catch unreachable;
 }
 
 pub fn part2(ctx: *Context) []u8 {
-    var cb: usize = MAXT - 1;
-    var lo: usize = MAXT - 1;
-    var hi: usize = ctx.blocks.len;
-    var bpos: usize = 0;
-    while (lo < hi) {
-        const mid = (lo + hi) / 2;
-        // go forward
-        while (cb < mid) {
-            cb += 1;
-            bpos = vpos(ctx.blocks[cb]);
-            ctx.map[bpos] = '#';
-        }
-        // go back
-        while (cb > mid) {
-            cb -= 1;
-            bpos = vpos(ctx.blocks[cb]);
-            ctx.map[bpos] = '.';
-        }
-        const d = bfs(ctx, ctx.start, ctx.end);
-        // std.debug.print("{d}:{any}={d}\n", .{ cb, ctx.blocks[cb], d });
-        if (d == 0) {
-            hi = mid - 1;
-        } else {
-            lo = mid + 1;
-        }
+    // clear once
+    @memset(ctx.dist, 0);
+    // place remaining blocks
+    for (MAXT..ctx.blocks.len) |i| ctx.map[vpos(ctx.blocks[i])] = '#';
+    var last = ctx.blocks.len - 1;
+    _ = bfs(ctx, ctx.start, ctx.end);
+    // now undo, in reverse
+    while (last > 1) : (last -= 1) {
+        const cpos = vpos(ctx.blocks[last]);
+        ctx.map[cpos] = '.';
+        // reachable wall, go explore
+        if (ctx.dist[cpos] > 0 and bfs(ctx, ctx.blocks[last], ctx.end) > 0) break;
     }
-    const fb = ctx.blocks[hi] - Vec2{ 1, 1 };
+    // std.debug.print("reachable after removing {d} : {any}\n", .{ last, ctx.blocks[last] });
+    const fb = ctx.blocks[last] - Vec2{ 1, 1 };
     return std.fmt.allocPrint(ctx.allocator, "{d},{d}", .{ fb[0], fb[1] }) catch unreachable;
 }
 
