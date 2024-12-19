@@ -8,6 +8,7 @@ pub const Context = struct {
     patterns: [][]const u8,
     mlen: usize,
     total: std.atomic.Value(u64),
+    total2: std.atomic.Value(u64),
     wait_group: std.Thread.WaitGroup,
 };
 
@@ -46,8 +47,9 @@ pub fn parse(allocator: Allocator, _: []u8, lines: [][]const u8) *Context {
     return ctx;
 }
 
-pub fn run_range(ctx: *Context, start: usize, count: comptime_int, p1: bool) void {
+pub fn run_range(ctx: *Context, start: usize, count: comptime_int) void {
     var tot: u64 = 0;
+    var tot2: u64 = 0;
     for (ctx.patterns[start .. start + count]) |line| {
         var reachable = [_]usize{0} ** 64;
         var tmp = [_]u32{0} ** 64;
@@ -59,27 +61,26 @@ pub fn run_range(ctx: *Context, start: usize, count: comptime_int, p1: bool) voi
             for (1..ctx.mlen + 1) |j| {
                 if (i + j > line.len) break;
                 tcode = tcode * 8 + tmp[i + j - 1];
-                if (p1 and reachable[i + j] > 0) continue;
-                // const key = line[i .. i + j];
+                // if (p1 and reachable[i + j] > 0) continue;
                 if (ctx.dict.contains(tcode)) reachable[i + j] += reachable[i];
             }
         }
-        if (p1 and reachable[line.len] > 0) {
-            tot += 1;
-        } else tot += reachable[line.len];
+        if (reachable[line.len] > 0) tot += 1;
+        tot2 += reachable[line.len];
     }
     _ = ctx.total.fetchAdd(tot, .seq_cst);
+    _ = ctx.total2.fetchAdd(tot2, .seq_cst);
     ctx.wait_group.finish();
 }
 
-pub fn run_parallel(ctx: *Context, p1: bool) u64 {
+pub fn run_parallel(ctx: *Context) u64 {
     const chunk_size = 50;
     const chunks = ctx.patterns.len / chunk_size;
     ctx.total.store(0, .seq_cst);
     ctx.wait_group.reset();
     for (0..chunks) |i| {
         ctx.wait_group.start();
-        common.pool.spawn(run_range, .{ ctx, i * chunk_size, chunk_size, p1 }) catch {
+        common.pool.spawn(run_range, .{ ctx, i * chunk_size, chunk_size }) catch {
             std.debug.panic("failed to spawn thread {d}\n", .{i});
         };
     }
@@ -88,11 +89,11 @@ pub fn run_parallel(ctx: *Context, p1: bool) u64 {
 }
 
 pub fn part1(ctx: *Context) []u8 {
-    return std.fmt.allocPrint(ctx.allocator, "{d}", .{run_parallel(ctx, true)}) catch unreachable;
+    return std.fmt.allocPrint(ctx.allocator, "{d}", .{run_parallel(ctx)}) catch unreachable;
 }
 
 pub fn part2(ctx: *Context) []u8 {
-    return std.fmt.allocPrint(ctx.allocator, "{d}", .{run_parallel(ctx, false)}) catch unreachable;
+    return std.fmt.allocPrint(ctx.allocator, "{d}", .{ctx.total2.raw}) catch unreachable;
 }
 
 // boilerplate
