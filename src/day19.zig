@@ -21,7 +21,7 @@ pub fn parse(allocator: Allocator, _: []u8, lines: [][]const u8) *Context {
     var ctx = allocator.create(Context) catch unreachable;
     ctx.dict = std.AutoHashMap(u32, bool).init(allocator);
     // way more than expected keys => low conflict rate & good performance
-    ctx.dict.ensureTotalCapacity(8000) catch unreachable;
+    ctx.dict.ensureTotalCapacity(2000) catch unreachable;
     const first = lines[0];
     var head: usize = 0;
     var tail: usize = 0;
