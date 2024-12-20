@@ -41,7 +41,7 @@ pub fn parse(allocator: Allocator, buf: []u8, lines: [][]const u8) *Context {
     return ctx;
 }
 
-pub fn bfs(ctx: *Context, start: Vec2, end: Vec2, dist: []vtype) vtype {
+pub fn bfs(ctx: *Context, start: Vec2, end: Vec2, dist: []vtype, prev: ?[]usize) vtype {
     const dirs = [_]Vec2{ Vec2{ 0, -1 }, Vec2{ 0, 1 }, Vec2{ -1, 0 }, Vec2{ 1, 0 } };
     ctx.queue.clearRetainingCapacity();
     const idimx = @as(i16, @intCast(ctx.dimx));
@@ -62,6 +62,7 @@ pub fn bfs(ctx: *Context, start: Vec2, end: Vec2, dist: []vtype) vtype {
             const npos: usize = @intCast(next[0] * idimx + next[1]);
             if (dist[npos] == 0 and ctx.map[npos] != '#') {
                 dist[npos] = dist[cpos] + 1;
+                if (prev != null) prev.?[npos] = cpos;
                 ctx.queue.append(next) catch unreachable;
             }
         }
@@ -74,26 +75,29 @@ pub fn search_range(ctx: *Context, shard: usize, comptime scnt: usize, lim: comp
     var tot: usize = 0;
     const idimx = @as(i16, @intCast(ctx.dimx));
     const dlimit = ctx.best - 100;
+    const cdim = ctx.dimy;
+    const dist1 = ctx.work1;
+    const dist2 = ctx.work2;
     for (ctx.qidx..ctx.queue.items.len) |i| {
         if (i % scnt != shard) continue;
         const pos = ctx.queue.items[i];
         const cpos: usize = @intCast(pos[0] * idimx + pos[1]);
-        const cdist = ctx.work1[cpos];
+        const cdist = dist1[cpos];
         std.debug.assert(cdist > 0);
         var dy: vtype = -lim;
         while (dy <= lim) : (dy += 1) {
             const ay: vtype = @intCast(@abs(dy));
-            if (pos[0] + dy < 0) continue;
-            if (pos[0] + dy >= ctx.dimy) break;
+            if (pos[0] + dy < 1) continue;
+            if (pos[0] + dy >= cdim) break;
             var dx: vtype = -lim + ay;
             while (dx <= lim - ay) : (dx += 1) {
                 const clen: i16 = @intCast(@abs(dx) + @abs(dy));
-                if (pos[1] + dx < 0) continue;
-                if (pos[1] + dx >= ctx.dimx) break;
+                if (pos[1] + dx < 1) continue;
+                if (pos[1] + dx >= cdim) break;
                 std.debug.assert(clen <= lim);
                 // if (clen > 20) continue;
                 const dpos: usize = @intCast((pos[0] + dy) * idimx + pos[1] + dx);
-                const ddist = ctx.work2[dpos];
+                const ddist = dist2[dpos];
                 if (ddist > 0 and cdist + ddist - 2 + clen <= dlimit) tot += 1;
             }
         }
@@ -103,7 +107,7 @@ pub fn search_range(ctx: *Context, shard: usize, comptime scnt: usize, lim: comp
 }
 
 pub fn run_parallel(ctx: *Context, lim: comptime_int) u64 {
-    const scnt = 12;
+    const scnt = 8;
     ctx.total.store(0, .seq_cst);
     ctx.wait_group.reset();
     for (0..scnt) |i| {
@@ -117,8 +121,8 @@ pub fn run_parallel(ctx: *Context, lim: comptime_int) u64 {
 }
 
 pub fn part1(ctx: *Context) []u8 {
-    _ = bfs(ctx, ctx.start, ctx.end, ctx.work1) - 1;
-    ctx.best = bfs(ctx, ctx.end, ctx.start, ctx.work2) - 1;
+    _ = bfs(ctx, ctx.start, ctx.end, ctx.work1, null) - 1;
+    ctx.best = bfs(ctx, ctx.end, ctx.start, ctx.work2, null) - 1;
     return std.fmt.allocPrint(ctx.allocator, "{d}", .{run_parallel(ctx, 2)}) catch unreachable;
 }
 
