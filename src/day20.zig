@@ -13,6 +13,8 @@ pub const Context = struct {
     best: vtype,
     dimx: usize,
     dimy: usize,
+    qidx: usize,
+    queue: std.ArrayList(Vec2),
     work1: []vtype,
     work2: []vtype,
     total: std.atomic.Value(u64),
@@ -31,90 +33,68 @@ pub fn parse(allocator: Allocator, buf: []u8, lines: [][]const u8) *Context {
     ctx.dimx = lines[0].len + 1;
     ctx.dimy = lines.len;
     ctx.map = buf;
+    ctx.queue = std.ArrayList(Vec2).init(allocator);
     ctx.work1 = allocator.alloc(vtype, ctx.dimx * ctx.dimy) catch unreachable;
     ctx.work2 = allocator.alloc(vtype, ctx.dimx * ctx.dimy) catch unreachable;
     @memset(ctx.work1, 0);
     @memset(ctx.work2, 0);
-    ctx.total.store(0, .seq_cst);
     return ctx;
 }
 
 pub fn bfs(ctx: *Context, start: Vec2, end: Vec2, dist: []vtype) vtype {
     const dirs = [_]Vec2{ Vec2{ 0, -1 }, Vec2{ 0, 1 }, Vec2{ -1, 0 }, Vec2{ 1, 0 } };
-    var q1 = std.ArrayList(Vec2).init(ctx.allocator);
-    var q2 = std.ArrayList(Vec2).init(ctx.allocator);
-    var q = &q1;
-    var nq = &q2;
+    ctx.queue.clearRetainingCapacity();
     const idimx = @as(i16, @intCast(ctx.dimx));
     const spos: usize = @intCast(start[0] * idimx + start[1]);
     dist[spos] = 1;
-    q.append(start) catch unreachable;
+    ctx.queue.append(start) catch unreachable;
+    ctx.qidx = 0;
     var idx: usize = 0;
     var ecnt: usize = 0;
-    while (idx < q.items.len) {
-        const cur = q.items[idx];
+    while (idx < ctx.queue.items.len) {
+        const cur = ctx.queue.items[idx];
         const cpos: usize = @intCast(cur[0] * idimx + cur[1]);
+        if (ctx.qidx == 0 and dist[cpos] > 100) ctx.qidx = idx;
         ecnt += 1;
         idx += 1;
         inline for (dirs) |move| {
             const next = cur + move;
             const npos: usize = @intCast(next[0] * idimx + next[1]);
-            if (dist[npos] == 0) { //or dist[nval] > dist[cval] + 1001
+            if (dist[npos] == 0 and ctx.map[npos] != '#') {
                 dist[npos] = dist[cpos] + 1;
-                if (ctx.map[npos] != '#')
-                    nq.append(next) catch unreachable;
+                ctx.queue.append(next) catch unreachable;
             }
-        }
-        // swap queues when needed
-        if (idx == q.items.len) {
-            const tq = q;
-            q = nq;
-            nq = tq;
-            nq.clearRetainingCapacity();
-            idx = 0;
         }
     }
     const epos: usize = @intCast(end[0] * idimx + end[1]);
     return dist[epos];
 }
 
-pub fn part1(ctx: *Context) []u8 {
-    const d1 = bfs(ctx, ctx.start, ctx.end, ctx.work1) - 1;
-    ctx.best = bfs(ctx, ctx.end, ctx.start, ctx.work2) - 1;
-    var tot: usize = 0;
-    for (0..ctx.dimx * ctx.dimy) |i| {
-        if (ctx.map[i] == '#' and ctx.work1[i] > 0 and ctx.work2[i] > 0 and ctx.work1[i] + ctx.work2[i] - 2 <= d1 - 100) {
-            tot += 1;
-        }
-    }
-    return std.fmt.allocPrint(ctx.allocator, "{d}", .{tot}) catch unreachable;
-}
-
-pub fn part2_range(ctx: *Context, sy: usize, num: usize) void {
+pub fn search_range(ctx: *Context, shard: usize, comptime scnt: usize, lim: comptime_int) void {
     var tot: usize = 0;
     const idimx = @as(i16, @intCast(ctx.dimx));
-    for (sy..sy + num) |y| {
-        const iy: vtype = @intCast(y);
-        for (0..ctx.dimx) |x| {
-            const ix: vtype = @intCast(x);
-            const cpos: usize = y * ctx.dimx + x;
-            if (ctx.map[cpos] == '#' or ctx.work1[cpos] == 0) continue;
-            var dy: vtype = -20;
-            while (dy <= 20) : (dy += 1) {
-                const ay: vtype = @intCast(@abs(dy));
-                var dx: vtype = -20 + ay;
-                while (dx <= 20 - ay) : (dx += 1) {
-                    const clen: i16 = @intCast(@abs(dx) + @abs(dy));
-                    if (clen > 20) continue;
-                    if (iy + dy < 0 or iy + dy >= ctx.dimy or ix + dx < 0 or ix + dx >= ctx.dimx) continue;
-                    const dpos: usize = @intCast((iy + dy) * idimx + ix + dx);
-                    if (ctx.map[cpos] != '#' and ctx.map[dpos] != '#' and
-                        ctx.work1[cpos] > 0 and ctx.work2[dpos] > 0 and
-                        ctx.work1[cpos] + ctx.work2[dpos] - 2 + clen <= ctx.best - 100)
-                    {
-                        tot += 1;
-                    }
-                }
+    const dlimit = ctx.best - 100;
+    for (ctx.qidx..ctx.queue.items.len) |i| {
+        if (i % scnt != shard) continue;
+        const pos = ctx.queue.items[i];
+        const cpos: usize = @intCast(pos[0] * idimx + pos[1]);
+        const cdist = ctx.work1[cpos];
+        std.debug.assert(cdist > 0);
+        var dy: vtype = -lim;
+        while (dy <= lim) : (dy += 1) {
+            const ay: vtype = @intCast(@abs(dy));
+            if (pos[0] + dy < 0) continue;
+            if (pos[0] + dy >= ctx.dimy) break;
+            var dx: vtype = -lim + ay;
+            while (dx <= lim - ay) : (dx += 1) {
+                const clen: i16 = @intCast(@abs(dx) + @abs(dy));
+                if (pos[1] + dx < 0) continue;
+                if (pos[1] + dx >= ctx.dimx) break;
+                std.debug.assert(clen <= lim);
+                // if (clen > 20) continue;
+                const dpos: usize = @intCast((pos[0] + dy) * idimx + pos[1] + dx);
+                const ddist = ctx.work2[dpos];
+                if (ddist > 0 and cdist + ddist - 2 + clen <= dlimit) tot += 1;
             }
         }
     }
@@ -122,18 +102,28 @@ pub fn part2_range(ctx: *Context, sy: usize, num: usize) void {
     ctx.wait_group.finish();
 }
 
-pub fn part2(ctx: *Context) []u8 {
-    const chunk_size = 14;
-    const chunks = ctx.dimy / chunk_size;
+pub fn run_parallel(ctx: *Context, lim: comptime_int) u64 {
+    const scnt = 12;
+    ctx.total.store(0, .seq_cst);
     ctx.wait_group.reset();
-    for (0..chunks) |i| {
+    for (0..scnt) |i| {
         ctx.wait_group.start();
-        common.pool.spawn(part2_range, .{ ctx, i * chunk_size, chunk_size }) catch {
+        common.pool.spawn(search_range, .{ ctx, i, scnt, lim }) catch {
             std.debug.panic("failed to spawn thread {d}\n", .{i});
         };
     }
     common.pool.waitAndWork(&ctx.wait_group);
-    return std.fmt.allocPrint(ctx.allocator, "{d}", .{ctx.total.raw}) catch unreachable;
+    return ctx.total.load(.seq_cst);
+}
+
+pub fn part1(ctx: *Context) []u8 {
+    _ = bfs(ctx, ctx.start, ctx.end, ctx.work1) - 1;
+    ctx.best = bfs(ctx, ctx.end, ctx.start, ctx.work2) - 1;
+    return std.fmt.allocPrint(ctx.allocator, "{d}", .{run_parallel(ctx, 2)}) catch unreachable;
+}
+
+pub fn part2(ctx: *Context) []u8 {
+    return std.fmt.allocPrint(ctx.allocator, "{d}", .{run_parallel(ctx, 20)}) catch unreachable;
 }
 
 // boilerplate
