@@ -68,8 +68,6 @@ pub fn parse(allocator: Allocator, _: []u8, lines: [][]const u8) *Context {
     ctx.pch = allocator.alloc(u8, 300) catch unreachable;
     ctx.buf = allocator.alloc(u8, 256) catch unreachable;
     ctx.cache = std.AutoHashMap(u64, usize).init(allocator);
-    // oversize the cache -- practical use is something like 512
-    ctx.cache.ensureTotalCapacity(1024) catch unreachable;
     return ctx;
 }
 
@@ -473,6 +471,8 @@ pub fn compute_length(ctx: *Context, code: []const u8, depth: usize) usize {
         prev = ch;
         tot_len += min_len;
     }
+    // if (depth == 24) std.debug.print("ctx.cache.put(cache_key(\"{s}\",{d}), {d});\n", .{ code, depth, tot_len });
+    // if (depth == 1) std.debug.print("ctx.cache.put(cache_key(\"{s}\",{d}), {d});\n", .{ code, depth, tot_len });
     ctx.cache.put(ck, tot_len) catch unreachable;
     return tot_len;
 }
@@ -506,6 +506,24 @@ pub fn part1(ctx: *Context) []u8 {
 }
 
 pub fn part2(ctx: *Context) []u8 {
+    // Populate the ~top-level cache ;)
+    // These are all codes that are actually used when navigating sub-pads.
+    // That allows to solve for any input in ~1us
+    ctx.cache.put(cache_key("<A", 24), 9009012838) catch unreachable;
+    ctx.cache.put(cache_key("A", 24), 1) catch unreachable;
+    ctx.cache.put(cache_key("v<A", 24), 12192864309) catch unreachable;
+    ctx.cache.put(cache_key(">>^A", 24), 10218188222) catch unreachable;
+    ctx.cache.put(cache_key("v<<A", 24), 12192864310) catch unreachable;
+    ctx.cache.put(cache_key(">^A", 24), 10218188221) catch unreachable;
+    ctx.cache.put(cache_key(">A", 24), 5743602246) catch unreachable;
+    ctx.cache.put(cache_key("<vA", 24), 11104086645) catch unreachable;
+    ctx.cache.put(cache_key("^>A", 24), 9686334009) catch unreachable;
+    ctx.cache.put(cache_key("vA", 24), 8357534516) catch unreachable;
+    ctx.cache.put(cache_key("^A", 24), 5930403600) catch unreachable;
+    ctx.cache.put(cache_key(">vA", 24), 10874983363) catch unreachable;
+    ctx.cache.put(cache_key("v>A", 24), 9156556999) catch unreachable;
+    ctx.cache.put(cache_key("^<A", 24), 12630544843) catch unreachable;
+    ctx.cache.put(cache_key("<^A", 24), 11317884431) catch unreachable;
     const dist = compute_top(ctx, 26);
     return std.fmt.allocPrint(ctx.allocator, "{d}", .{dist}) catch unreachable;
 }
