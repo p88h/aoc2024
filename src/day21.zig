@@ -69,7 +69,7 @@ pub fn parse(allocator: Allocator, _: []u8, lines: [][]const u8) *Context {
     ctx.buf = allocator.alloc(u8, 256) catch unreachable;
     ctx.cache = std.AutoHashMap(u64, usize).init(allocator);
     // oversize the cache -- practical use is something like 512
-    ctx.cache.ensureTotalCapacity(2048) catch unreachable;
+    ctx.cache.ensureTotalCapacity(1024) catch unreachable;
     return ctx;
 }
 
