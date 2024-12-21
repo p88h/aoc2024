@@ -10,6 +10,7 @@ pub const Context = struct {
     prev: []usize,
     pch: []u8,
     buf: []u8,
+    log: ?std.ArrayList(u64),
 };
 
 pub const Keypad1 = enum { One, Two, Three, Four, Five, Six, Seven, Eight, Nine, Zero, Enter };
@@ -474,6 +475,7 @@ pub fn compute_length(ctx: *Context, code: []const u8, depth: usize) usize {
     // if (depth == 24) std.debug.print("ctx.cache.put(cache_key(\"{s}\",{d}), {d});\n", .{ code, depth, tot_len });
     // if (depth == 1) std.debug.print("ctx.cache.put(cache_key(\"{s}\",{d}), {d});\n", .{ code, depth, tot_len });
     ctx.cache.put(ck, tot_len) catch unreachable;
+    if (ctx.log != null) ctx.log.?.append(ck) catch unreachable;
     return tot_len;
 }
 
@@ -494,6 +496,11 @@ pub fn compute_top(ctx: *Context, depth: usize) usize {
             }
             prev = ch;
             tot_len += min_len;
+        }
+        if (ctx.log != null) {
+            const ck = cache_key(line, depth);
+            ctx.cache.put(ck, tot_len) catch unreachable;
+            ctx.log.?.append(ck) catch unreachable;
         }
         ctot += entry * tot_len;
     }
