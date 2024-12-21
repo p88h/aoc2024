@@ -68,6 +68,8 @@ pub fn parse(allocator: Allocator, _: []u8, lines: [][]const u8) *Context {
     ctx.pch = allocator.alloc(u8, 300) catch unreachable;
     ctx.buf = allocator.alloc(u8, 256) catch unreachable;
     ctx.cache = std.AutoHashMap(u64, usize).init(allocator);
+    // oversize the cache -- practical use is something like 512
+    ctx.cache.ensureTotalCapacity(2048) catch unreachable;
     return ctx;
 }
 
@@ -245,7 +247,7 @@ pub fn part1_bfs(ctx: *Context) []u8 {
     return std.fmt.allocPrint(ctx.allocator, "{d}", .{tot}) catch unreachable;
 }
 
-pub fn expand1(from: u8, to: u8) []const []const u8 {
+pub inline fn expand1(from: u8, to: u8) []const []const u8 {
     return switch (from) {
         '<' => switch (to) {
             '^' => &.{">^A"},
@@ -286,7 +288,7 @@ pub fn expand1(from: u8, to: u8) []const []const u8 {
     };
 }
 
-pub fn expand2(from: u8, to: u8) []const []const u8 {
+pub inline fn expand2(from: u8, to: u8) []const []const u8 {
     return switch (from) {
         '0' => switch (to) {
             '0' => &.{"A"},
