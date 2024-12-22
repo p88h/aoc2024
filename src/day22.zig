@@ -4,8 +4,9 @@ const common = @import("common.zig");
 const testing = std.testing;
 
 pub const Vec8 = @Vector(8, u32);
-pub const scnt = 24;
+pub const scnt = 16;
 pub const pcnt = 19 * 19 * 19 * 19;
+pub const pcnt_pad = ((pcnt + 63) / 64) * 64;
 
 pub const Context = struct {
     allocator: Allocator,
@@ -29,7 +30,7 @@ pub fn parse(allocator: Allocator, _: []u8, lines: [][]const u8) *Context {
         for (line) |ch| num = num * 10 + @as(u32, @intCast(ch - '0'));
         ctx.secrets[i / 8][i % 8] = num;
     }
-    ctx.results = allocator.alloc(u16, pcnt * scnt) catch unreachable;
+    ctx.results = allocator.alloc(u16, pcnt_pad * scnt) catch unreachable;
     @memset(ctx.results, 0);
     return ctx;
 }
@@ -111,26 +112,18 @@ test "hulk smash many" {
     try testing.expect(sum == 37327623);
 }
 
-pub inline fn hash_smash_v2(v: Vec8, h: *Vec8, r: *Vec8, pattern: u32) Vec8 {
-    const v_10 = comptime Vec8{ 10, 10, 10, 10, 10, 10, 10, 10 };
+const v_10 = Vec8{ 10, 10, 10, 10, 10, 10, 10, 10 };
+pub inline fn hash_smash_v2(v: Vec8, h: *Vec8) Vec8 {
     const v_8 = comptime @Vector(8, u5){ 8, 8, 8, 8, 8, 8, 8, 8 };
     // previous last digits
     const pd = v % v_10;
-    var nv = hash_smash(v);
+    const nv = hash_smash(v);
     // new last digits,
     const d = (nv % v_10);
     // digits delta plus 10 to make it non-negative (range 1..19 each)
     const z = (d + v_10) - pd;
     // store price delta in history
     h.* = (h.* << v_8) + z;
-    // unfortunate loop
-    inline for (0..8) |i| {
-        // sell
-        if (h.*[i] == pattern) {
-            r.*[i] = d[i];
-            nv[i] = 0;
-        }
-    }
     return nv;
 }
 
@@ -141,23 +134,17 @@ pub inline fn make_pattern(a: usize, b: usize, c: usize, d: usize) u32 {
 test "monkey business" {
     var v: Vec8 = @splat(0);
     var h: Vec8 = @splat(0);
-    var r: Vec8 = @splat(0);
-    const pat = make_pattern(10 + 2, 10 - 2, 10, 10 - 2);
     v[0] = 123;
-    v = hash_smash_v2(v, &h, &r, pat);
-    v = hash_smash_v2(v, &h, &r, pat);
-    v = hash_smash_v2(v, &h, &r, pat);
-    v = hash_smash_v2(v, &h, &r, pat);
+    v = hash_smash_v2(v, &h);
+    v = hash_smash_v2(v, &h);
+    v = hash_smash_v2(v, &h);
+    v = hash_smash_v2(v, &h);
     try testing.expect(h[0] == make_pattern(10 - 3, 10 + 6, 10 - 1, 10 - 1));
-    v = hash_smash_v2(v, &h, &r, pat);
-    v = hash_smash_v2(v, &h, &r, pat);
-    v = hash_smash_v2(v, &h, &r, pat);
-    v = hash_smash_v2(v, &h, &r, pat);
+    v = hash_smash_v2(v, &h);
+    v = hash_smash_v2(v, &h);
+    v = hash_smash_v2(v, &h);
+    v = hash_smash_v2(v, &h);
     try testing.expect(h[0] == make_pattern(10, 10 + 2, 10 - 2, 10));
-    try testing.expect(r[0] == 0);
-    v = hash_smash_v2(v, &h, &r, pat);
-    try testing.expect(v[0] == 0);
-    try testing.expect(r[0] == 2);
 }
 
 pub fn hash_smash_loop_2(nums: []Vec8, comptime cnt: usize, pattern: u32) Vec8 {
@@ -166,10 +153,18 @@ pub fn hash_smash_loop_2(nums: []Vec8, comptime cnt: usize, pattern: u32) Vec8 {
     var h = [_]Vec8{@splat(0)} ** 4;
     // sell counts
     var r = [_]Vec8{@splat(0)} ** 4;
-    for (1..cnt) |_| {
+    for (0..cnt) |_| {
         var zcnt: usize = 0;
         inline for (0..4) |i| {
-            v[i] = hash_smash_v2(v[i], &h[i], &r[i], pattern);
+            v[i] = hash_smash_v2(v[i], &h[i]);
+            // unfortunate inner loop
+            inline for (0..8) |j| {
+                // sell
+                if (h[i][j] == pattern) {
+                    r[i][j] = v[i][j] % 10;
+                    v[i][j] = 0;
+                }
+            }
             zcnt += std.simd.countElementsWithValue(v[i], 0);
         }
         if (zcnt == 32) break;
@@ -190,6 +185,48 @@ test "monkey market" {
     try testing.expect(ret[3] == 9);
 }
 
+pub inline fn pack_pattern(pat: u32) usize {
+    var t = pat;
+    var r: u32 = 0;
+    inline for (0..4) |_| {
+        r = r * 19 + @as(u32, @intCast((t & 0xFF) - 1));
+        t >>= 8;
+    }
+    return r;
+}
+
+pub fn hash_smash_loop_3(nums: []Vec8, comptime cnt: usize, totals: *[pcnt]u16) Vec8 {
+    var history = [_]u32{0} ** pcnt;
+    var v: [4]Vec8 = nums[0..4].*;
+    // historys
+    var h = [_]Vec8{@splat(0)} ** 4;
+    // sell counts
+    var r = [_]Vec8{@splat(0)} ** 4;
+    for (0..cnt) |k| {
+        var zcnt: usize = 0;
+        inline for (0..4) |i| {
+            v[i] = hash_smash_v2(v[i], &h[i]);
+            if (k >= 3) {
+                // unfortunate loop
+                inline for (0..8) |j| {
+                    const p = pack_pattern(h[i][j]);
+                    const bit: u32 = 1 << comptime (8 * i + j);
+                    // this pattern was not seen for this merchant
+                    if (history[p] & bit == 0) {
+                        totals.*[p] += @intCast(v[i][j] % 10);
+                        history[p] |= bit;
+                    }
+                }
+                zcnt += std.simd.countElementsWithValue(v[i], 0);
+            }
+        }
+        if (zcnt == 32) break;
+    }
+    r[0] += r[1];
+    r[3] += r[2];
+    return r[3] + r[0];
+}
+
 pub inline fn unpack_pattern(idx: usize) u32 {
     var t = idx;
     var r: u32 = 0;
@@ -200,17 +237,35 @@ pub inline fn unpack_pattern(idx: usize) u32 {
     return r;
 }
 
+pub fn max_pattern(totals: *[pcnt]u16) u32 {
+    var midx = 0;
+    for (1..pcnt) |p| {
+        if (totals[p] > totals[midx]) midx = p;
+    }
+    return midx;
+}
+
+test "smart monkey" {
+    var nums = [_]Vec8{@splat(0)} ** 4;
+    var totals = [_]u16{0} ** pcnt;
+    nums[0] = Vec8{ 1, 2, 3, 2024, 0, 0, 0, 0 };
+    const pat = make_pattern(10 - 2, 10 + 1, 10 - 1, 10 + 3);
+    const idx = unpack_pattern(pat);
+    _ = hash_smash_loop_3(&nums, 2000, &totals);
+    try testing.expect(totals[idx] == 23);
+    const m = max_pattern(&totals);
+    testing.expect(m == idx);
+}
+
 pub fn hash_smash_loop_shard(ctx: *Context, shard: usize, comptime iter: usize, p2: bool) void {
     var tot: u64 = 0;
     var ofs = shard * 4;
     const len = ctx.secrets.len;
+    var results: *[pcnt]u16 = undefined;
+    results.ptr = @alignCast(@ptrCast(ctx.results.ptr + shard * pcnt_pad));
     while (ofs < len) : (ofs += scnt * 4) {
         if (p2) {
-            for (0..pcnt) |p| {
-                const pat = unpack_pattern(p);
-                const rv = hash_smash_loop_2(ctx.secrets[ofs .. ofs + 4], iter, pat);
-                ctx.results[p * scnt + shard] += @intCast(@reduce(.Add, rv));
-            }
+            _ = hash_smash_loop_3(ctx.secrets[ofs .. ofs + 4], iter, results);
         } else {
             const rv = hash_smash_loop_1(ctx.secrets[ofs .. ofs + 4], iter);
             tot += @intCast(@reduce(.Add, rv));
@@ -222,21 +277,25 @@ pub fn hash_smash_loop_shard(ctx: *Context, shard: usize, comptime iter: usize, 
 }
 
 pub fn hash_smash_all(ctx: *Context, comptime iter: usize, p2: bool) u64 {
-    ctx.total.store(0, .seq_cst);
-    ctx.wait_group.reset();
-    for (0..scnt) |s| {
-        ctx.wait_group.start();
-        common.pool.spawn(hash_smash_loop_shard, .{ ctx, s, iter, p2 }) catch {
-            std.debug.panic("Could not spawn thread", .{});
-        };
+    if (scnt > 1) {
+        ctx.total.store(0, .seq_cst);
+        ctx.wait_group.reset();
+        for (0..scnt) |s| {
+            ctx.wait_group.start();
+            common.pool.spawn(hash_smash_loop_shard, .{ ctx, s, iter, p2 }) catch {
+                std.debug.panic("Could not spawn thread", .{});
+            };
+        }
+        common.pool.waitAndWork(&ctx.wait_group);
+    } else {
+        hash_smash_loop_shard(ctx, 0, iter, p2);
     }
-    common.pool.waitAndWork(&ctx.wait_group);
     if (p2) {
-        var mmax: u64 = 0;
+        var mmax: u16 = 0;
         for (0..pcnt) |p| {
-            var rt: u64 = 0;
-            inline for (0..scnt) |s| rt += @intCast(ctx.results[p * scnt + s]);
-            if (rt > mmax) mmax = rt;
+            var ct: u16 = 0;
+            for (0..scnt) |s| ct += ctx.results[s * pcnt_pad + p];
+            if (ct > mmax) mmax = ct;
         }
         return mmax;
     } else {
