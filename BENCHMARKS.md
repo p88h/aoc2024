@@ -62,7 +62,7 @@ day 18: 86.3 µs 13.3 µs  5.4 µs  0.1 ms (+-1%) iter=1010
 day 19:  3.8 µs 66.2 µs 62.0 ns 70.1 µs (+-1%) iter=51010    
 day 20: 15.7 µs  0.1 ms  0.7 ms  1.0 ms (+-0%) iter=110    
 day 21: 15.0 ns  1.8 µs  1.7 µs  3.5 µs (+-1%) iter=29110    
-day 22:  0.2 ms  0.1 ms  0.9 ms  1.2 ms (+-1%) iter=260    
+day 22:  0.2 ms  0.1 ms  0.8 ms  1.1 ms (+-1%) iter=260    
 
-all days total:         4.2 ms
+all days total:         4.1 ms
 ```
