@@ -7,6 +7,8 @@ pub const Vec8 = @Vector(8, u32);
 pub const scnt = 16;
 pub const pcnt = 19 * 19 * 19 * 19;
 pub const pcnt_pad = ((pcnt + 63) / 64) * 64;
+// good values are 2 / 4. 1 is slower. 8 won't work (would need changes), and would be slower.
+pub const beam = 4;
 
 pub const Context = struct {
     allocator: Allocator,
@@ -21,8 +23,8 @@ pub fn parse(allocator: Allocator, _: []u8, lines: [][]const u8) *Context {
     ctx.allocator = allocator;
     // pad up to vector size
     var ssize = (lines.len + 7) / 8;
-    // pad up to a multiple of 4
-    while (ssize % 4 != 0) : (ssize += 1) {}
+    // pad up to a multiple of beam
+    while (ssize % beam != 0) : (ssize += 1) {}
     ctx.secrets = allocator.alloc(Vec8, ssize) catch unreachable;
     @memset(ctx.secrets, @splat(0));
     for (lines, 0..) |line, i| {
@@ -77,28 +79,20 @@ test "hulk smash" {
 }
 
 pub fn hash_smash_loop_1(nums: []Vec8, comptime cnt: usize) Vec8 {
-    var v0 = nums[0];
-    var v1 = nums[1];
-    var v2 = nums[2];
-    var v3 = nums[3];
+    var vv: [beam]Vec8 = nums[0..beam].*;
     for (0..cnt) |_| {
-        v0 = hash_smash(v0);
-        v1 = hash_smash(v1);
-        v2 = hash_smash(v2);
-        v3 = hash_smash(v3);
+        inline for (0..beam) |i| vv[i] = hash_smash(vv[i]);
     }
-    v0 += v1;
-    v3 += v2;
-    v3 += v0;
-    return v3;
+    inline for (1..beam) |i| vv[0] += vv[i];
+    return vv[0];
 }
 
 test "hulk smash many" {
-    var nums = [_]Vec8{@splat(0)} ** 4;
+    var nums = [_]Vec8{@splat(0)} ** beam;
     nums[0][0] = 1;
-    nums[1][5] = 10;
-    nums[2][1] = 100;
-    nums[2][4] = 2024;
+    nums[0][5] = 10;
+    nums[1][1] = 100;
+    nums[1][4] = 2024;
     const rv = hash_smash_loop_1(&nums, 2000);
     try testing.expect(rv[0] == 8685429);
     try testing.expect(rv[5] == 4700978);
@@ -112,9 +106,11 @@ test "hulk smash many" {
     try testing.expect(sum == 37327623);
 }
 
-const v_10 = Vec8{ 10, 10, 10, 10, 10, 10, 10, 10 };
+const v_10: Vec8 = @splat(10);
+const v_8s: @Vector(8, u5) = @splat(8);
+const v_1: Vec8 = @splat(1);
+
 pub inline fn hash_smash_v2(v: Vec8, h: *Vec8) Vec8 {
-    const v_8 = comptime @Vector(8, u5){ 8, 8, 8, 8, 8, 8, 8, 8 };
     // previous last digits
     const pd = v % v_10;
     const nv = hash_smash(v);
@@ -123,7 +119,7 @@ pub inline fn hash_smash_v2(v: Vec8, h: *Vec8) Vec8 {
     // digits delta plus 10 to make it non-negative (range 1..19 each)
     const z = (d + v_10) - pd;
     // store price delta in history
-    h.* = (h.* << v_8) + z;
+    h.* = (h.* << v_8s) + z;
     return nv;
 }
 
@@ -148,14 +144,14 @@ test "monkey business" {
 }
 
 pub fn hash_smash_loop_2(nums: []Vec8, comptime cnt: usize, pattern: u32) Vec8 {
-    var v: [4]Vec8 = nums[0..4].*;
+    var v: [beam]Vec8 = nums[0..beam].*;
     // historys
-    var h = [_]Vec8{@splat(0)} ** 4;
+    var h = [_]Vec8{@splat(0)} ** beam;
     // sell counts
-    var r = [_]Vec8{@splat(0)} ** 4;
+    var r = [_]Vec8{@splat(0)} ** beam;
     for (0..cnt) |_| {
         var zcnt: usize = 0;
-        inline for (0..4) |i| {
+        inline for (0..beam) |i| {
             v[i] = hash_smash_v2(v[i], &h[i]);
             // unfortunate inner loop
             inline for (0..8) |j| {
@@ -167,15 +163,14 @@ pub fn hash_smash_loop_2(nums: []Vec8, comptime cnt: usize, pattern: u32) Vec8 {
             }
             zcnt += std.simd.countElementsWithValue(v[i], 0);
         }
-        if (zcnt == 32) break;
+        if (zcnt == beam * 8) break;
     }
-    r[0] += r[1];
-    r[3] += r[2];
-    return r[3] + r[0];
+    inline for (1..beam) |i| r[0] += r[i];
+    return r[0];
 }
 
 test "monkey market" {
-    var nums = [_]Vec8{@splat(0)} ** 4;
+    var nums = [_]Vec8{@splat(0)} ** beam;
     nums[0] = Vec8{ 1, 2, 3, 2024, 0, 0, 0, 0 };
     const pat = make_pattern(10 - 2, 10 + 1, 10 - 1, 10 + 3);
     const ret = hash_smash_loop_2(&nums, 2000, pat);
@@ -185,46 +180,44 @@ test "monkey market" {
     try testing.expect(ret[3] == 9);
 }
 
-pub inline fn pack_pattern(pat: u32) usize {
+pub inline fn pack_patterns(pat: Vec8) Vec8 {
     var t = pat;
-    var r: u32 = 0;
+    var r: Vec8 = @splat(0);
+    const v_255: Vec8 = comptime @splat(255);
+    const v_19: Vec8 = comptime @splat(19);
     inline for (0..4) |_| {
-        r = r * 19 + @as(u32, @intCast((t & 0xFF) - 1));
-        t >>= 8;
+        r = r * v_19 + (t & v_255) - v_1;
+        t >>= v_8s;
     }
     return r;
 }
 
-pub fn hash_smash_loop_3(nums: []Vec8, comptime cnt: usize, totals: *[pcnt]u16) Vec8 {
+pub fn hash_smash_loop_3(nums: []Vec8, comptime cnt: usize, totals: *[pcnt]u16) void {
+    // we'll process beam x 8 merchants at a time, using 32 bits for presence detection.
     var history = [_]u32{0} ** pcnt;
-    var v: [4]Vec8 = nums[0..4].*;
-    // historys
-    var h = [_]Vec8{@splat(0)} ** 4;
-    // sell counts
-    var r = [_]Vec8{@splat(0)} ** 4;
+    var v: [beam]Vec8 = nums[0..beam].*;
+    // local history
+    var h = [_]Vec8{@splat(0)} ** beam;
+    const v_1_8 = comptime std.simd.iota(u5, 8);
     for (0..cnt) |k| {
-        var zcnt: usize = 0;
-        inline for (0..4) |i| {
+        inline for (0..beam) |i| {
+            const v_b: @Vector(8, u5) = comptime @splat(8 * i);
+            const v_s = comptime (v_b + v_1_8);
+            const bits = comptime (v_1 << v_s);
             v[i] = hash_smash_v2(v[i], &h[i]);
             if (k >= 3) {
-                // unfortunate loop
+                const p = pack_patterns(h[i]);
+                // unfortunate loop.. zig has no SIMD gather
                 inline for (0..8) |j| {
-                    const p = pack_pattern(h[i][j]);
-                    const bit: u32 = 1 << comptime (8 * i + j);
                     // this pattern was not seen for this merchant
-                    if (history[p] & bit == 0) {
-                        totals.*[p] += @intCast(v[i][j] % 10);
-                        history[p] |= bit;
+                    if (history[p[j]] & bits[j] == 0) {
+                        totals.*[p[j]] += @intCast(v[i][j] % 10);
+                        history[p[j]] |= bits[j];
                     }
                 }
-                zcnt += std.simd.countElementsWithValue(v[i], 0);
             }
         }
-        if (zcnt == 32) break;
     }
-    r[0] += r[1];
-    r[3] += r[2];
-    return r[3] + r[0];
 }
 
 pub inline fn unpack_pattern(idx: usize) u32 {
@@ -237,8 +230,8 @@ pub inline fn unpack_pattern(idx: usize) u32 {
     return r;
 }
 
-pub fn max_pattern(totals: *[pcnt]u16) u32 {
-    var midx = 0;
+pub fn max_pattern(totals: *[pcnt]u16) usize {
+    var midx: usize = 0;
     for (1..pcnt) |p| {
         if (totals[p] > totals[midx]) midx = p;
     }
@@ -246,28 +239,29 @@ pub fn max_pattern(totals: *[pcnt]u16) u32 {
 }
 
 test "smart monkey" {
-    var nums = [_]Vec8{@splat(0)} ** 4;
+    var nums = [_]Vec8{@splat(0)} ** beam;
     var totals = [_]u16{0} ** pcnt;
     nums[0] = Vec8{ 1, 2, 3, 2024, 0, 0, 0, 0 };
     const pat = make_pattern(10 - 2, 10 + 1, 10 - 1, 10 + 3);
-    const idx = unpack_pattern(pat);
-    _ = hash_smash_loop_3(&nums, 2000, &totals);
+    const pats: Vec8 = @splat(pat);
+    const idx = pack_patterns(pats)[0];
+    hash_smash_loop_3(&nums, 2000, &totals);
     try testing.expect(totals[idx] == 23);
     const m = max_pattern(&totals);
-    testing.expect(m == idx);
+    try testing.expect(m == idx);
 }
 
 pub fn hash_smash_loop_shard(ctx: *Context, shard: usize, comptime iter: usize, p2: bool) void {
     var tot: u64 = 0;
-    var ofs = shard * 4;
+    var ofs = shard * beam;
     const len = ctx.secrets.len;
     var results: *[pcnt]u16 = undefined;
     results.ptr = @alignCast(@ptrCast(ctx.results.ptr + shard * pcnt_pad));
-    while (ofs < len) : (ofs += scnt * 4) {
+    while (ofs < len) : (ofs += scnt * beam) {
         if (p2) {
-            _ = hash_smash_loop_3(ctx.secrets[ofs .. ofs + 4], iter, results);
+            hash_smash_loop_3(ctx.secrets[ofs .. ofs + beam], iter, results);
         } else {
-            const rv = hash_smash_loop_1(ctx.secrets[ofs .. ofs + 4], iter);
+            const rv = hash_smash_loop_1(ctx.secrets[ofs .. ofs + beam], iter);
             tot += @intCast(@reduce(.Add, rv));
         }
     }
