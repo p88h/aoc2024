@@ -8,9 +8,8 @@ const sol = @import("src").day23;
 
 const VisState = struct {
     ctx: *sol.Context,
-    cliques: std.ArrayList([]u8),
-    done: std.AutoHashMap(u16, bool),
     pos: [1024]ray.Vector2,
+    cnt: [1024]u32,
     mid: usize,
     max: usize,
     tot: usize,
@@ -21,8 +20,6 @@ pub fn init(allocator: Allocator, _: *ASCIIRay) *VisState {
     var vis = allocator.create(VisState) catch unreachable;
     const ptr = common.create_ctx(allocator, sol.work);
     vis.ctx = @alignCast(@ptrCast(ptr));
-    vis.cliques = std.ArrayList([]u8).init(allocator);
-    vis.done = std.AutoHashMap(u16, bool).init(allocator);
     vis.mid = 0;
     vis.max = 0;
     vis.tot = 0;
@@ -61,10 +58,12 @@ pub fn step(vis: *VisState, a: *ASCIIRay, idx: usize) bool {
     // first layer - draw connections
     for (ctx.nodes) |node| {
         if (node.conns.len == 0) continue;
+        vis.cnt[node.id] = 0;
         const p = vis.pos[node.id];
         for (node.conns) |id| {
             if (id == node.id) continue;
             const p2 = vis.pos[id];
+            if (distance(p, p2) < 128) vis.cnt[node.id] += 1;
             ray.DrawLineV(p, p2, ray.DARKGRAY);
         }
     }
@@ -75,7 +74,10 @@ pub fn step(vis: *VisState, a: *ASCIIRay, idx: usize) bool {
         const f = format_id(node.id);
         bus[0] = f[0];
         bus[1] = f[1];
-        a.writeat(&bus, @intFromFloat(p.x), @intFromFloat(p.y), ray.LIGHTGRAY);
+        var col = ray.LIGHTGRAY;
+        if (vis.cnt[node.id] >= 11) col = ray.RED;
+        if (vis.cnt[node.id] >= 12) col = ray.GREEN;
+        a.writeat(&bus, @intFromFloat(p.x), @intFromFloat(p.y), col);
         // gravity
         for (node.conns) |id| {
             if (id == node.id) continue;
