@@ -10,9 +10,11 @@ const VisState = struct {
     ctx: *sol.Context,
     cliques: std.ArrayList([]u8),
     done: std.AutoHashMap(u16, bool),
+    pos: [1024]ray.Vector2,
     mid: usize,
     max: usize,
     tot: usize,
+    random: std.Random,
 };
 
 pub fn init(allocator: Allocator, _: *ASCIIRay) *VisState {
@@ -24,8 +26,14 @@ pub fn init(allocator: Allocator, _: *ASCIIRay) *VisState {
     vis.mid = 0;
     vis.max = 0;
     vis.tot = 0;
+    var prng = std.rand.DefaultPrng.init(@intCast(std.time.milliTimestamp()));
+    vis.random = prng.random();
     for (vis.ctx.nodes) |node| {
-        if (node.conns.len > 0) vis.tot += 1;
+        if (node.conns.len == 0) continue;
+        vis.tot += 1;
+        const px = std.rand.intRangeAtMost(vis.random, i32, 10, 1910);
+        const py = std.rand.intRangeAtMost(vis.random, i32, 10, 1070);
+        vis.pos[node.id] = .{ .x = @floatFromInt(px), .y = @floatFromInt(py) };
     }
     return vis;
 }
@@ -34,57 +42,67 @@ pub inline fn format_id(id: u16) @Vector(2, u8) {
     return @Vector(2, u8){ @as(u8, @intCast('a' - 1 + (id >> 5))), @as(u8, @intCast('a' - 1 + (id & 31))) };
 }
 
+pub inline fn distance(p1: ray.Vector2, p2: ray.Vector2) f32 {
+    return ray.Vector2Length(ray.Vector2Subtract(p1, p2));
+}
+
+pub inline fn force(p1: ray.Vector2, p2: ray.Vector2, scale: f32) ray.Vector2 {
+    const v = ray.Vector2Subtract(p2, p1);
+    const n = ray.Vector2Normalize(v);
+    return ray.Vector2Scale(n, scale);
+}
+
+const master_scale = 0.3;
 pub fn step(vis: *VisState, a: *ASCIIRay, idx: usize) bool {
     const ctx = vis.ctx;
-    if (idx > ctx.conns.len) return true;
-    const conn = ctx.conns[idx];
-    const id1: u16 = @intCast(conn >> 10);
-    const id2: u16 = @intCast(conn & 1023);
-    const t = sol.find_clique(ctx, id1, id2, 3);
-    var buf = [_]u8{' '} ** 64;
-    if (t < 3) {
-        const f1 = format_id(id1);
-        const f2 = format_id(id2);
-        _ = std.fmt.bufPrintZ(&buf, "{c}{c},{c}{c} : not in a clique", .{ f1[0], f1[1], f2[0], f2[1] }) catch unreachable;
-        a.writeXY(&buf, 0, @intCast(vis.cliques.items.len), ray.RED);
-    } else {
-        var good: bool = true;
-        for (ctx.com3) |id| good = good and !vis.done.contains(id);
-        if (good) {
-            if (t > vis.max) {
-                vis.max = t;
-                vis.mid = vis.cliques.items.len;
-            }
-            vis.cliques.append(sol.format_party(ctx)) catch unreachable;
-            for (ctx.com3) |id| vis.done.put(id, true) catch unreachable;
-        } else {
-            const f1 = format_id(id1);
-            const f2 = format_id(id2);
-            _ = std.fmt.bufPrintZ(&buf, "{c}{c},{c}{c} : already in a clique", .{ f1[0], f1[1], f2[0], f2[1] }) catch unreachable;
-            a.writeXY(&buf, 0, @intCast(vis.cliques.items.len), ray.BLUE);
+    if (idx > 60 * 60) return true;
+    var bus = [_]u8{' '} ** 3;
+    bus[2] = 0;
+    // first layer - draw connections
+    for (ctx.nodes) |node| {
+        if (node.conns.len == 0) continue;
+        const p = vis.pos[node.id];
+        for (node.conns) |id| {
+            if (id == node.id) continue;
+            const p2 = vis.pos[id];
+            ray.DrawLineV(p, p2, ray.DARKGRAY);
         }
     }
-    for (vis.cliques.items, 0..) |c, i| {
-        if (i == vis.mid) {
-            a.writeXY("Best party: ", 0, @intCast(i), ray.YELLOW);
-            a.writeXY(c, 12, @intCast(i), ray.RAYWHITE);
-        } else {
-            a.writeXY("Good party: ", 0, @intCast(i), ray.GREEN);
-            a.writeXY(c, 12, @intCast(i), ray.LIGHTGRAY);
+    // second loop - draw labels and update positions
+    for (ctx.nodes) |node| {
+        if (node.conns.len == 0) continue;
+        var p = vis.pos[node.id];
+        const f = format_id(node.id);
+        bus[0] = f[0];
+        bus[1] = f[1];
+        a.writeat(&bus, @intFromFloat(p.x), @intFromFloat(p.y), ray.LIGHTGRAY);
+        // gravity
+        for (node.conns) |id| {
+            if (id == node.id) continue;
+            const p2 = vis.pos[id];
+            const d = distance(p, p2);
+            if (d < 64) continue;
+            p = ray.Vector2Add(p, force(p, p2, master_scale));
         }
-    }
-    _ = std.fmt.bufPrintZ(&buf, "Parties: {d} Nodes playing: {d} / {d}\n", .{
-        vis.cliques.items.len,
-        vis.done.count(),
-        vis.tot,
-    }) catch unreachable;
-    a.writeXY(&buf, 0, @intCast(vis.cliques.items.len + 2), ray.LIGHTGRAY);
+        // anti-gravity
+        for (ctx.nodes) |node2| {
+            if (node2.id == node.id) continue;
+            const p2 = vis.pos[node2.id];
+            const d = distance(p, p2);
+            if (d > 128) continue;
+            var scale: f32 = master_scale / 4.0;
+            if (d < 48) scale = master_scale / 2.0;
+            if (d < 24) scale = master_scale;
+            p = ray.Vector2Subtract(p, force(p, p2, scale));
+        }
 
+        vis.pos[node.id] = p;
+    }
     return false;
 }
 
 pub const handle = handler{
     .init = @ptrCast(&init),
     .step = @ptrCast(&step),
-    .window = .{ .width = 720, .height = 1280, .fsize = 24, .fps = 15 },
+    .window = .{ .fsize = 16, .fps = 30 },
 };
