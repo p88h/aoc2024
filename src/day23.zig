@@ -91,6 +91,7 @@ pub fn common_count(conn1: *[]u16, conn2: *[]u16, com: *[]u16) usize {
 pub fn part1(ctx: *Context) []u8 {
     var com1 = ctx.allocator.alloc(u16, 16) catch unreachable;
     var done = std.AutoHashMap(u32, bool).init(ctx.allocator);
+    done.ensureTotalCapacity(4096) catch unreachable;
     for (ctx.conns) |conn| {
         const id1: u16 = @intCast(conn >> 10);
         const id2: u16 = @intCast(conn & 1023);
