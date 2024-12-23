@@ -11,6 +11,9 @@ pub const Context = struct {
     allocator: Allocator,
     conns: []u32,
     nodes: [1024]Node,
+    com1: []u16,
+    com2: []u16,
+    com3: []u16,
 };
 
 pub fn parse(allocator: Allocator, _: []u8, lines: [][]const u8) *Context {
@@ -35,8 +38,9 @@ pub fn parse(allocator: Allocator, _: []u8, lines: [][]const u8) *Context {
     for (ecnt, 0..) |s, id| {
         ctx.nodes[id].id = @intCast(id);
         if (s > 0) {
-            ctx.nodes[id].conns = allocator.alloc(u16, s) catch unreachable;
-            ecnt[id] = 0;
+            ctx.nodes[id].conns = allocator.alloc(u16, s + 1) catch unreachable;
+            ctx.nodes[id].conns[0] = @intCast(id);
+            ecnt[id] = 1;
         } else {
             ctx.nodes[id].conns.len = 0;
         }
@@ -56,6 +60,9 @@ pub fn parse(allocator: Allocator, _: []u8, lines: [][]const u8) *Context {
         if (node.conns.len == 0) continue;
         std.mem.sort(u16, node.conns, {}, comptime std.sort.asc(u16));
     }
+    ctx.com1 = ctx.allocator.alloc(u16, 16) catch unreachable;
+    ctx.com2 = ctx.allocator.alloc(u16, 16) catch unreachable;
+    ctx.com3 = ctx.allocator.alloc(u16, 16) catch unreachable;
     return ctx;
 }
 
@@ -89,7 +96,6 @@ pub fn common_count(conn1: *[]u16, conn2: *[]u16, com: *[]u16) usize {
 }
 
 pub fn part1(ctx: *Context) []u8 {
-    var com1 = ctx.allocator.alloc(u16, 16) catch unreachable;
     var done = std.AutoHashMap(u32, bool).init(ctx.allocator);
     done.ensureTotalCapacity(4096) catch unreachable;
     for (ctx.conns) |conn| {
@@ -97,9 +103,10 @@ pub fn part1(ctx: *Context) []u8 {
         const id2: u16 = @intCast(conn & 1023);
         // any of them starts with a 't' ?
         if ((id1 >> 5) != 20 and (id2 >> 5) != 20) continue;
-        const count = common_count(&ctx.nodes[id1].conns, &ctx.nodes[id2].conns, &com1);
+        const count = common_count(&ctx.nodes[id1].conns, &ctx.nodes[id2].conns, &ctx.com1);
         if (count == 0) continue;
-        for (com1) |id3| {
+        for (ctx.com1) |id3| {
+            if (id3 == id1 or id3 == id2) continue;
             const key = ordered_key(id1, id2, id3);
             if (!done.contains(key)) done.put(key, true) catch unreachable;
         }
@@ -107,37 +114,52 @@ pub fn part1(ctx: *Context) []u8 {
     return std.fmt.allocPrint(ctx.allocator, "{d}", .{done.count()}) catch unreachable;
 }
 
+pub fn find_clique(ctx: *Context, id1: u16, id2: u16, threshold: comptime_int) usize {
+    var min_count = common_count(&ctx.nodes[id1].conns, &ctx.nodes[id2].conns, &ctx.com3);
+    if (min_count < threshold) return 0;
+    ctx.com1 = ctx.com3[0..min_count];
+    // check common connections across all id1 neighbors
+    for (ctx.com1) |id3| {
+        if (id3 == id2) continue;
+        const count1 = common_count(&ctx.com3, &ctx.nodes[id3].conns, &ctx.com2);
+        if (count1 < min_count) {
+            min_count = count1;
+            ctx.com3 = ctx.com2[0..count1];
+        }
+        if (threshold > 0 and min_count <= threshold) break;
+    }
+    if (min_count > threshold) {
+        return min_count;
+    }
+    return 0;
+}
+
+pub fn format_party(ctx: *Context) []u8 {
+    var ret: []u8 = ctx.allocator.alloc(u8, ctx.com3.len * 3) catch unreachable;
+    std.mem.sort(u16, ctx.com3, {}, comptime std.sort.asc(u16));
+    for (ctx.com3, 0..) |id, p| {
+        if (p > 0) ret[p * 3 - 1] = ',';
+        ret[p * 3] = @as(u8, @intCast('a' - 1 + (id >> 5)));
+        ret[p * 3 + 1] = @as(u8, @intCast('a' - 1 + (id & 31)));
+    }
+    ret[ctx.com3.len * 3 - 1] = 0;
+    return ret;
+}
+
 pub fn part2(ctx: *Context) []u8 {
-    var com1 = ctx.allocator.alloc(u16, 16) catch unreachable;
-    var com2 = ctx.allocator.alloc(u16, 16) catch unreachable;
+    var max: usize = 0;
+    var ret: []u8 = undefined;
     for (ctx.conns) |conn| {
         const id1: u16 = @intCast(conn >> 10);
         const id2: u16 = @intCast(conn & 1023);
-        var min_count = common_count(&ctx.nodes[id1].conns, &ctx.nodes[id2].conns, &com1);
-        if (min_count > 10) {
-            for (com1) |id3| {
-                if (id3 == id2) continue;
-                const count1 = common_count(&ctx.nodes[id2].conns, &ctx.nodes[id3].conns, &com2);
-                if (count1 < min_count) min_count = count1;
-                if (min_count < 11) break;
-            }
-            // add id1 and id2
-            if (min_count > 10) {
-                com1.len += 2;
-                com1[com1.len - 2] = id1;
-                com1[com1.len - 1] = id2;
-                std.mem.sort(u16, com1, {}, comptime std.sort.asc(u16));
-                var ret: []u8 = ctx.allocator.alloc(u8, com1.len * 3 - 1) catch unreachable;
-                for (com1, 0..) |id, p| {
-                    if (p > 0) ret[p * 3 - 1] = ',';
-                    ret[p * 3] = @as(u8, @intCast('a' - 1 + (id >> 5)));
-                    ret[p * 3 + 1] = @as(u8, @intCast('a' - 1 + (id & 31)));
-                }
-                return ret;
-            }
+        const t = find_clique(ctx, id1, id2, 12);
+        if (t > max) {
+            max = t;
+            ret = format_party(ctx);
+            if (max == ctx.nodes[id1].conns.len - 1) break;
         }
     }
-    return std.fmt.allocPrint(ctx.allocator, "{d}", .{ctx.nodes[0].conns.len}) catch unreachable;
+    return ret;
 }
 
 // boilerplate
