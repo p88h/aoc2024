@@ -54,7 +54,7 @@ pub const Worker = struct {
 };
 
 pub fn download_file(allocator: Allocator, url: []u8, path: []u8, cookie: ?[]const u8) !void {
-    std.debug.print("Trying to download {s} from {s}", .{ path, url });
+    std.debug.print("Trying to download {s} from {s}\n", .{ path, url });
     var http_client = std.http.Client{ .allocator = allocator };
     defer http_client.deinit();
     var response = std.ArrayList(u8).init(allocator);
