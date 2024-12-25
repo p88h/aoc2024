@@ -193,6 +193,5 @@ pub const work = common.Worker{
     .part2 = @ptrCast(&part2),
 };
 pub fn main() void {
-    for (0..10) |_|
-        common.run_day(work);
+    common.run_day(work);
 }
