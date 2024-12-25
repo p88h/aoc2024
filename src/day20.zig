@@ -107,7 +107,7 @@ pub fn search_range(ctx: *Context, shard: usize, comptime scnt: usize, lim: comp
 }
 
 pub fn run_parallel(ctx: *Context, lim: comptime_int) u64 {
-    const scnt = 8;
+    const scnt = 12;
     ctx.total.store(0, .seq_cst);
     ctx.wait_group.reset();
     for (0..scnt) |i| {
