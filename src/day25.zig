@@ -44,13 +44,17 @@ pub fn parse(allocator: Allocator, _: []u8, lines: [][]const u8) *Context {
     return ctx;
 }
 
+pub fn match(key: Vec8, lock: Vec8) bool {
+    const sum = key + lock;
+    const max: Vec8 = @splat(8);
+    return std.simd.countTrues(sum < max) == 8;
+}
+
 pub fn part1(ctx: *Context) []u8 {
     var tot: usize = 0;
     for (ctx.keys) |key| {
         for (ctx.locks) |lock| {
-            const sum = key + lock;
-            const max: Vec8 = @splat(8);
-            if (std.simd.countTrues(sum < max) == 8) tot += 1;
+            if (match(key, lock)) tot += 1;
         }
     }
     return std.fmt.allocPrint(ctx.allocator, "{d}", .{tot}) catch unreachable;
