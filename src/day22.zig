@@ -4,10 +4,10 @@ const common = @import("common.zig");
 const testing = std.testing;
 
 pub const Vec8 = @Vector(8, u32);
-pub const scnt = 16;
+pub const scnt = 12;
 pub const pcnt = 19 * 19 * 19 * 19;
 pub const pcnt_pad = ((pcnt + 63) / 64) * 64;
-// good values are 2 / 4. 1 is slower. 8 won't work (would need changes), and would be slower.
+// good values are 2 / 4. 1 is slower. 8 won't work (/would need changes), and would be slower.
 pub const beam = 4;
 
 pub const Context = struct {
