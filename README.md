@@ -7,17 +7,27 @@ This years language of choice is Zig. Only Zig.
 
 With some C dependencies, I guess, but that's the point of Zig, right?
 
-Hopefully, you should be able to run the solutions code by using
-
+First off, to run the full code here, you need to do this:
 ```
+# Do these first, once is enough:
+$ git submodule init
+$ git submodule update
+```
+
+These pull in raylib code, which is only used for visualisations, but necessary for build system not to freak out due to missing dependencies.
+
+Then, you should be able to run the solutions code by using
+```
+# And then these will work : 
 # run last day
 $ zig build run
 # run one specific day 
 $ zig build run -- 4
-# or alternatively
-$ zig run src/day04.zig
 # run all days
 $ zig build -Doptimize=ReleaseFast run -- all
+
+# or alternatively you can try this: it does not even require raylib submodule.
+$ zig run src/day04.zig
 ```
 
 But this is Zig. YMMV. 
@@ -34,15 +44,15 @@ Visualisations
 `vis` directory contains visualisations for all days implemented with Raylib. To get this to run you can try:
 
 ```
-# this is only needed once, really
-$ git submodule init 
-# you can also add `-- rec` to have it create a video file. 
-# And similarly to the regular code, you can pass day number after -- to run that dat
-# Note that zig run will not work for visualisations due to raylib dependency.
 $ zig build -Doptimize=ReleaseSafe vis 
 # run & record select a specific day 
 $ zig build -Doptimize=ReleaseSafe vis -- 23 rec
 ```
+
+You can also add `-- rec` to have it create a video file. 
+
+And similarly to the regular code runner, you can pass day number after `--` to run that day specifically.
+Note that zig run will not work for visualisations due to raylib dependency.
 
 Again, YMMV. Right now it doesn't do much, but seems to work. 
 
