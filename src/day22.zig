@@ -288,7 +288,7 @@ pub fn hash_smash_all(ctx: *Context, comptime iter: usize, p2: bool) u64 {
         var mmax: u16 = 0;
         for (0..pcnt) |p| {
             var ct: u16 = 0;
-            for (0..scnt) |s| ct += ctx.results[s * pcnt_pad + p];
+            inline for (0..scnt) |s| ct += ctx.results[s * pcnt_pad + p];
             if (ct > mmax) mmax = ct;
         }
         return mmax;
